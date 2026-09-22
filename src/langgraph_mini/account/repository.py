@@ -13,6 +13,7 @@ from .domain import Account,AccountNotFoundError
 class AccountRepository(Protocol):
     def find_by_id(self, account_id: str) -> Account: ...
     def find_all(self) -> list[Account]: ...
+    def find_by_owner_id(self, owner_id: str) -> list[Account]: ...
     def save(self, account: Account) -> None: ...
 
 
@@ -36,6 +37,10 @@ class MemoryAccountRepository:
             account_list.append(account)
         return account_list
 
+    def find_by_owner_id(self, owner_id: str) -> list[Account]:
+        """owner_id가 일치하는 계좌 전부 (없으면 빈 리스트, 예외 아님)."""
+        raise NotImplementedError
+
     def save(self, account: Account) -> None:
-        self._accounts[account.id] = account
+        self._accounts[account.account_id] = account
 

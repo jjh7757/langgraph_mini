@@ -13,5 +13,5 @@ def test_deposit_increases_balance():
     ...
 
 
-def test_rename_changes_alias():
+def test_rename_changes_nickname():
     ...
