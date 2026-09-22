@@ -7,7 +7,7 @@ DB 구현체(예: SqlAccountRepository)는 나중에 별도 파일(repository_sq
 
 from typing import Protocol
 
-from .domain import Account
+from .domain import Account,AccountNotFoundError
 
 
 class AccountRepository(Protocol):
@@ -16,7 +16,7 @@ class AccountRepository(Protocol):
     def save(self, account: Account) -> None: ...
 
 
-class InMemoryAccountRepository:
+class MemoryAccountRepository:
     """AccountRepository를 상속하지 않아도 됨 — 메서드 시그니처만 맞으면 protocol을 만족."""
 
     def __init__(self) -> None:
@@ -24,10 +24,18 @@ class InMemoryAccountRepository:
 
     def find_by_id(self, account_id: str) -> Account:
         """없으면 AccountNotFoundError."""
-        raise NotImplementedError
+        find_account = self._accounts.get(account_id)
+        if find_account is None:
+            raise AccountNotFoundError(account_id)
+        else:
+            return find_account
 
     def find_all(self) -> list[Account]:
-        raise NotImplementedError
+        account_list = []
+        for account in self._accounts.values():
+            account_list.append(account)
+        return account_list
 
     def save(self, account: Account) -> None:
-        raise NotImplementedError
+        self._accounts[account.id] = account
+

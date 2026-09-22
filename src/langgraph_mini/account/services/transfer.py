@@ -24,13 +24,28 @@ class AccountTransferService(Protocol):
         self, from_id: str, targets: list[tuple[str, int]]
     ) -> list[Transaction]: ...
 
+class AccountSelfTransferError(Exception):
+    """자기자신에게 이체하려 할때"""
 
 class DefaultAccountTransferService:
     def __init__(self, repo: AccountRepository) -> None:
         self._repo = repo
 
     def transfer(self, from_id: str, to_id: str, amount: int) -> Transaction:
-        raise NotImplementedError
+        if from_id == to_id:
+            raise AccountSelfTransferError
+        from_account = self._repo.find_by_id(from_id)
+        to_account = self._repo.find_by_id(to_id)
+
+        from_account.withdraw(amount)
+        to_account.deposit(amount)
+
+        self._repo.save(from_account)
+        self._repo.save(to_account)
+        return Transaction(from_id, to_id, amount)
+
+
+        
 
     def transfer_conditional(
         self, from_id: str, to_id: str, amount: int, condition: TransferCondition

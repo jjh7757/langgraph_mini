@@ -18,4 +18,7 @@ class DefaultAccountManageService:
         self._repo = repo
 
     def rename_account(self, account_id: str, new_alias: str) -> Account:
-        raise NotImplementedError
+        account = self._repo.find_by_id(account_id)
+        account.rename(new_alias)
+        self._repo.save(account)
+        return account

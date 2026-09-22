@@ -20,10 +20,14 @@ class DefaultAccountQueryService:
         self._repo = repo
 
     def get_account(self, account_id: str) -> Account:
-        raise NotImplementedError
+        return self._repo.find_by_id(account_id)
 
     def get_total_balance(self, account_ids: list[str]) -> int:
-        raise NotImplementedError
+        total = 0
+        for account_id in account_ids:
+            account = self.get_account(account_id)
+            total += account.balance
+        return total
 
     def get_transactions(self, account_id: str) -> list[Transaction]:
         """TODO(결정 필요): Transaction을 어디서 가져올지.
