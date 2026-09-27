@@ -1,7 +1,5 @@
 """계좌 조회 관련 서비스.
 
-TODO(직접 구현): 아래 NotImplementedError 메서드들의 실제 로직.
-
 get_total_balance/get_accounts는 owner_id 기준(그 소유자의 모든 계좌)으로 동작함 —
 호출하는 쪽이 계좌 id 목록을 미리 알 필요가 없음.
 
@@ -13,7 +11,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from ..card_repository import CardRepository
-from ..domain import Account, Card, Transaction, TransactionFilter
+from ..domain import Account, Card, Transaction, TransactionFilter, TransactionType
 from ..repository import AccountRepository
 from ..transaction_repository import TransactionRepository
 
@@ -54,7 +52,7 @@ class DefaultAccountQueryService:
 
     def get_total_balance(self, owner_id: str) -> int:
         """owner_id의 모든 계좌 balance 합산. 계좌가 하나도 없으면 0."""
-        raise NotImplementedError
+        return sum(account.balance for account in self.get_accounts(owner_id))
 
     def get_transactions(
         self, account_id: str, filter: TransactionFilter | None = None
@@ -67,4 +65,35 @@ class DefaultAccountQueryService:
         4) transaction_type이 CARD_PAYMENT인 항목만 card_id로 self._card_repo.find_by_id
            호출해서 TransactionView.card 채우기, 나머지는 card=None
         """
-        raise NotImplementedError
+        transactions = self._transaction_repo.find_by_account_id(account_id)
+
+        if filter is not None:
+            transactions = [t for t in transactions if self._matches(t, filter)]
+
+        transactions.sort(key=lambda t: t.created_at, reverse=True)
+
+        views: list[TransactionView] = []
+        for transaction in transactions:
+            card = None
+            if transaction.transaction_type is TransactionType.CARD_PAYMENT and transaction.card_id is not None:
+                card = self._card_repo.find_by_id(transaction.card_id)
+            views.append(TransactionView(transaction=transaction, card=card))
+        return views
+
+    @staticmethod
+    def _matches(transaction: Transaction, filter: TransactionFilter) -> bool:
+        transaction_date = transaction.created_at.date()
+        if filter.start_date is not None and transaction_date < filter.start_date:
+            return False
+        if filter.end_date is not None and transaction_date > filter.end_date:
+            return False
+        if filter.min_amount is not None and transaction.amount < filter.min_amount:
+            return False
+        if filter.max_amount is not None and transaction.amount > filter.max_amount:
+            return False
+        if (
+            filter.transaction_type is not None
+            and transaction.transaction_type is not filter.transaction_type
+        ):
+            return False
+        return True

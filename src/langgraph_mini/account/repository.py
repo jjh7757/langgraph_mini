@@ -1,13 +1,12 @@
 """AccountRepository protocol과 메모리 구현체.
 
-TODO(직접 구현): InMemoryAccountRepository의 실제 로직.
 DB 구현체(예: SqlAccountRepository)는 나중에 별도 파일(repository_sql.py)로 추가할 것 —
-로직을 InMemoryAccountRepository로 먼저 검증한 뒤 교체.
+로직을 MemoryAccountRepository로 먼저 검증한 뒤 교체.
 """
 
 from typing import Protocol
 
-from .domain import Account,AccountNotFoundError
+from .domain import Account, AccountNotFoundError
 
 
 class AccountRepository(Protocol):
@@ -39,7 +38,11 @@ class MemoryAccountRepository:
 
     def find_by_owner_id(self, owner_id: str) -> list[Account]:
         """owner_id가 일치하는 계좌 전부 (없으면 빈 리스트, 예외 아님)."""
-        raise NotImplementedError
+        return [
+            account
+            for account in self._accounts.values()
+            if account.owner_id == owner_id
+        ]
 
     def save(self, account: Account) -> None:
         self._accounts[account.account_id] = account

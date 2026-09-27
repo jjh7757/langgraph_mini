@@ -79,14 +79,6 @@ class DefaultAccountTransferService:
         self._transaction_repo = transaction_repo
 
     def transfer(self, from_id: str, to_id: str, amount: int) -> list[Transaction]:
-        """계좌 잔액 변경(withdraw/deposit/save)은 완성돼 있음.
-        TODO(직접 구현): 아래 두 Transaction을 만들어 self._transaction_repo에
-        각각 save하고 리스트로 반환할 것.
-            Transaction(account_id=from_id, transaction_type=TransactionType.TRANSFER_OUT,
-                        amount=amount, counterpart_id=to_id)
-            Transaction(account_id=to_id, transaction_type=TransactionType.TRANSFER_IN,
-                        amount=amount, counterpart_id=from_id)
-        """
         if from_id == to_id:
             raise AccountSelfTransferError
         from_account = self._account_repo.find_by_id(from_id)
@@ -98,7 +90,7 @@ class DefaultAccountTransferService:
         self._account_repo.save(from_account)
         self._account_repo.save(to_account)
 
-        raise NotImplementedError
+        return self._record_transfer(from_id, to_id, amount)
 
     def calculate_conditional_transfer(
         self, from_id: str, to_id: str, condition: TransferCondition
@@ -106,7 +98,16 @@ class DefaultAccountTransferService:
         """amount = from_account.balance - condition.remaining_balance.
         amount <= 0이면 ConditionalTransferNotNeededError.
         여기서는 계좌 상태를 바꾸지 않음 (조회만)."""
-        raise NotImplementedError
+        from_account = self._account_repo.find_by_id(from_id)
+        amount = from_account.balance - condition.remaining_balance
+        if amount <= 0:
+            raise ConditionalTransferNotNeededError(amount)
+        return ConditionalTransferQuote(
+            from_id=from_id,
+            to_id=to_id,
+            amount=amount,
+            balance_snapshot=from_account.balance,
+        )
 
     def confirm_conditional_transfer(
         self, quote: ConditionalTransferQuote
@@ -114,7 +115,10 @@ class DefaultAccountTransferService:
         """현재 from 계좌 잔액이 quote.balance_snapshot과 다르면
         StaleConditionalTransferError. 같으면 quote.amount로 self.transfer()와
         동일한 흐름 실행 (재사용해도 됨: self.transfer(quote.from_id, quote.to_id, quote.amount))."""
-        raise NotImplementedError
+        from_account = self._account_repo.find_by_id(quote.from_id)
+        if from_account.balance != quote.balance_snapshot:
+            raise StaleConditionalTransferError(quote.from_id)
+        return self.transfer(quote.from_id, quote.to_id, quote.amount)
 
     def transfer_split(
         self, from_id: str, targets: list[tuple[str, int]]
@@ -131,4 +135,47 @@ class DefaultAccountTransferService:
         6) target마다 TRANSFER_OUT(from_id 기준)/TRANSFER_IN(대상 계좌 기준) 한 쌍씩
            만들어 transaction_repo에 save, 전부 리스트로 반환
         """
-        raise NotImplementedError
+        for _, amount in targets:
+            if amount <= 0:
+                raise ValueError("transfer_split amount must be positive")
+
+        from_account = self._account_repo.find_by_id(from_id)
+        target_accounts = [
+            (target_id, amount, self._account_repo.find_by_id(target_id))
+            for target_id, amount in targets
+        ]
+
+        total = sum(amount for _, amount in targets)
+        from_account.withdraw(total)
+
+        for _, amount, target_account in target_accounts:
+            target_account.deposit(amount)
+
+        self._account_repo.save(from_account)
+        for _, _, target_account in target_accounts:
+            self._account_repo.save(target_account)
+
+        transactions: list[Transaction] = []
+        for target_id, amount, _ in target_accounts:
+            transactions.extend(self._record_transfer(from_id, target_id, amount))
+        return transactions
+
+    def _record_transfer(
+        self, from_id: str, to_id: str, amount: int
+    ) -> list[Transaction]:
+        """이체 한 건에 대한 TRANSFER_OUT/TRANSFER_IN 한 쌍을 만들어 저장하고 반환."""
+        out_tx = Transaction(
+            account_id=from_id,
+            transaction_type=TransactionType.TRANSFER_OUT,
+            amount=amount,
+            counterpart_id=to_id,
+        )
+        in_tx = Transaction(
+            account_id=to_id,
+            transaction_type=TransactionType.TRANSFER_IN,
+            amount=amount,
+            counterpart_id=from_id,
+        )
+        self._transaction_repo.save(out_tx)
+        self._transaction_repo.save(in_tx)
+        return [out_tx, in_tx]

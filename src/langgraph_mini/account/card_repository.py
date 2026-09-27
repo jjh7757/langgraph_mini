@@ -1,11 +1,8 @@
-"""CardRepository protocol과 메모리 구현체.
-
-TODO(직접 구현): MemoryCardRepository의 실제 로직.
-"""
+"""CardRepository protocol과 메모리 구현체."""
 
 from typing import Protocol
 
-from .domain import Card
+from .domain import Card, CardNotFoundError
 
 
 class CardRepository(Protocol):
@@ -20,10 +17,13 @@ class MemoryCardRepository:
 
     def find_by_id(self, card_id: str) -> Card:
         """없으면 CardNotFoundError. AccountRepository.find_by_id와 같은 패턴."""
-        raise NotImplementedError
+        card = self._cards.get(card_id)
+        if card is None:
+            raise CardNotFoundError(card_id)
+        return card
 
     def find_by_account_id(self, account_id: str) -> list[Card]:
-        raise NotImplementedError
+        return [card for card in self._cards.values() if card.account_id == account_id]
 
     def save(self, card: Card) -> None:
-        raise NotImplementedError
+        self._cards[card.card_id] = card
