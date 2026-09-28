@@ -122,6 +122,30 @@ def _latest_human_text(messages: list) -> str | None:
     return None
 
 
+def extract_reply_text(content: str | list | None) -> str:
+    """AIMessage.content를 사람이 읽을 텍스트로 정규화.
+
+    보통은 str이지만, Gemini가 thinking_budget과 함께 답할 때 content가
+    `[{"type": "text", "text": "..."}, ...]` 같은 다중 파트 리스트로 오는 경우가 실제로
+    있음(cli.py/api/app.py가 이걸 그대로 화면에 내놓다가 CLI엔 파이썬 repr이, 웹 화면엔
+    "[object Object]"가 새어나가는 버그로 발견됨) — 그 경우 텍스트 파트만 이어붙인다."""
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict):
+                text = item.get("text")
+                if text:
+                    parts.append(text)
+        return "".join(parts)
+    return str(content)
+
+
 def _recovery_summary(request, result) -> str:
     return f"{RECOVERY_PREFIX} {request.action}: {result}"
 

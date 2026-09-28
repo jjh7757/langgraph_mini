@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage
 
 from .agent.demo_data import DEMO_OWNER_ID, ensure_demo_data
-from .agent.graph import build_graph
+from .agent.graph import build_graph, extract_reply_text
 from .agent.wiring import build_orchestration
 
 DEFAULT_THREAD_ID = "default"
@@ -111,7 +111,7 @@ def _run_and_handle(app, config, payload) -> None:
 
     messages = result.get("messages") or []
     if messages:
-        print(f"봇> {messages[-1].content}")
+        print(f"봇> {extract_reply_text(messages[-1].content)}")
 
 
 def _ensure_demo_data(data_dir: str) -> None:

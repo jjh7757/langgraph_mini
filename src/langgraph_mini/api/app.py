@@ -34,7 +34,7 @@ from ..account.services.transfer import (
     StaleConditionalTransferError,
 )
 from ..agent.demo_data import DEMO_OWNER_ID, ensure_demo_data
-from ..agent.graph import build_graph
+from ..agent.graph import build_graph, extract_reply_text
 from ..agent.wiring import build_orchestration_sql
 from ..billing.domain import BillAlreadyPaidError, BillNotFoundError
 from ..billing.repository_sql import SqlBillRepository
@@ -299,7 +299,7 @@ def chat(thread_id: str, body: ChatMessage) -> JSONResponse:
 
     _interrupted_threads.discard(thread_id)
     messages = result.get("messages") or []
-    reply = messages[-1].content if messages else ""
+    reply = extract_reply_text(messages[-1].content) if messages else ""
     return JSONResponse({"reply": reply, "waiting_for_confirmation": False})
 
 
