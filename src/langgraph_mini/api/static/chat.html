@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>virtual-financial-services 데모</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 16px;
+    background: #0b0f14;
+    color: #e6e6e6;
+  }
+  h2 { font-size: 1.1rem; font-weight: 600; color: #9fb3c8; }
+  #log {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 60vh;
+    margin-bottom: 12px;
+  }
+  .msg {
+    padding: 8px 12px;
+    border-radius: 10px;
+    max-width: 80%;
+    white-space: pre-wrap;
+    line-height: 1.4;
+    word-break: break-word;
+  }
+  .user { align-self: flex-end; background: #2b6cb0; }
+  .bot { align-self: flex-start; background: #2d333b; }
+  form {
+    display: flex;
+    gap: 8px;
+    position: sticky;
+    bottom: 0;
+    background: #0b0f14;
+    padding-top: 8px;
+  }
+  input {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #444;
+    background: #14181f;
+    color: #e6e6e6;
+    font-size: 1rem;
+  }
+  button {
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: none;
+    background: #2b6cb0;
+    color: white;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: default; }
+</style>
+</head>
+<body>
+  <h2>은행 업무 도우미 데모</h2>
+  <div id="log"></div>
+  <form id="form">
+    <input id="input" autocomplete="off" placeholder="메시지를 입력하세요" />
+    <button id="send">전송</button>
+  </form>
+  <script>
+    const log = document.getElementById("log");
+    const form = document.getElementById("form");
+    const input = document.getElementById("input");
+    const sendBtn = document.getElementById("send");
+    let threadId = null;
+
+    function addMessage(text, who) {
+      const div = document.createElement("div");
+      div.className = "msg " + who;
+      div.textContent = text;
+      log.appendChild(div);
+      div.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+
+    async function init() {
+      const res = await fetch("/api/session", { method: "POST" });
+      const data = await res.json();
+      threadId = data.thread_id;
+      addMessage("안녕하세요! 계좌·카드·청구서 관련 요청을 말씀해주세요.", "bot");
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text || !threadId) return;
+      addMessage(text, "user");
+      input.value = "";
+      sendBtn.disabled = true;
+      try {
+        const res = await fetch(`/api/chat/${threadId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text }),
+        });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        addMessage(data.reply, "bot");
+      } catch (err) {
+        addMessage("오류가 발생했습니다. 잠시 후 다시 시도해주세요.", "bot");
+      } finally {
+        sendBtn.disabled = false;
+        input.focus();
+      }
+    });
+
+    init();
+  </script>
+</body>
+</html>

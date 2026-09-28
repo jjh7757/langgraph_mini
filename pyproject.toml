@@ -11,6 +11,10 @@ dependencies = [
     "langgraph>=1.2.12",
     "langsmith>=0.14.0",
     "python-dotenv>=1.2.3",
+    "psycopg[binary,pool]>=3.2",
+    "redis>=5.2",
+    "fastapi>=0.118",
+    "uvicorn[standard]>=0.34",
 ]
 
 [project.scripts]

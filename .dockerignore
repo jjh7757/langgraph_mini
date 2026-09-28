@@ -1,0 +1,10 @@
+.venv
+__pycache__
+*.py[oc]
+.pytest_cache
+data/
+.env
+.git
+tests
+infra
+설계초안

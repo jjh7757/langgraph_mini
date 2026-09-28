@@ -14,16 +14,15 @@
 
 import os
 import sys
-from datetime import date, timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage
 
+from .agent.demo_data import DEMO_OWNER_ID, ensure_demo_data
 from .agent.graph import build_graph
 from .agent.wiring import build_orchestration
 
-DEMO_OWNER_ID = "demo-user"
 DEFAULT_THREAD_ID = "default"
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -113,52 +112,21 @@ def _run_and_handle(app, config, payload) -> None:
 
 def _ensure_demo_data(data_dir: str) -> None:
     """data/*.json이 비어있으면(처음 실행) 데모용 계좌 2개·카드 1개·청구서 1개를 만들어둔다.
-    이미 데이터가 있으면 아무것도 안 함(owner_id 기준으로 확인)."""
-    from .account.domain import Account
+    이미 데이터가 있으면 아무것도 안 함(owner_id 기준으로 확인) — 실제 로직은 API 앱과
+    공유하는 agent/demo_data.py에 있음."""
     from .account.repository_json import JsonAccountRepository
-    from .billing.domain import Bill
     from .billing.repository_json import JsonBillRepository
-    from .card.domain import Card, CardKind
     from .card.repository_json import JsonCardRepository
 
     path = Path(data_dir)
-    account_repo = JsonAccountRepository(path / "accounts.json")
-    if account_repo.find_by_owner_id(DEMO_OWNER_ID):
-        return
-
-    account_repo.save(
-        Account(
-            account_id="demo-acc-1", owner_id=DEMO_OWNER_ID, nickname="생활비", balance=500000
-        )
+    created = ensure_demo_data(
+        JsonAccountRepository(path / "accounts.json"),
+        JsonCardRepository(path / "cards.json"),
+        JsonBillRepository(path / "bills.json"),
+        DEMO_OWNER_ID,
     )
-    account_repo.save(
-        Account(
-            account_id="demo-acc-2", owner_id=DEMO_OWNER_ID, nickname="저축", balance=2000000
-        )
-    )
-
-    JsonCardRepository(path / "cards.json").save(
-        Card(
-            card_id="demo-card-1",
-            account_id="demo-acc-1",
-            name="생활비 체크카드",
-            kind=CardKind.CHECK,
-        )
-    )
-
-    JsonBillRepository(path / "bills.json").save(
-        Bill(
-            bill_id="demo-bill-1",
-            owner_id=DEMO_OWNER_ID,
-            name="전기요금",
-            amount=45000,
-            due_date=date.today() + timedelta(days=10),
-        )
-    )
-
-    print(
-        "[처음 실행 — 데모 데이터 생성: 계좌 2개(생활비/저축), 카드 1개, 청구서 1개]"
-    )
+    if created:
+        print("[처음 실행 — 데모 데이터 생성: 계좌 2개(생활비/저축), 카드 1개, 청구서 1개]")
 
 
 if __name__ == "__main__":

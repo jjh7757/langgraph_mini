@@ -1,0 +1,38 @@
+# 로컬 개발/테스트 전용 — 프로덕션의 공용 Postgres/Redis(TIL DB환경구성.md)를 로컬용으로
+# 축소한 것. 사용법:
+#   docker compose -f docker-compose.dev.yml up -d
+#   psql postgresql://postgres:devpassword@localhost:5432/postgres -f src/langgraph_mini/db/schema.sql
+# 그 뒤 .env에 DATABASE_URL/REDIS_URL을 채우거나(.env.example 참고), 테스트용으로는
+#   TEST_DATABASE_URL=postgresql://postgres:devpassword@localhost:5432/postgres
+#   TEST_REDIS_URL=redis://localhost:6379/0
+# 를 환경변수로 두고 uv run python -m pytest 실행 (tests/conftest.py가 이 값을 읽음).
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: devpassword
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - devpgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  devpgdata:
