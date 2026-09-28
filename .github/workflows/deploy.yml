@@ -1,9 +1,10 @@
-# jjh7757/TIL의 AWS배포환경/templates/deploy.yml을 그대로 복사하고 APP_NAME만 채운 것.
+# jjh7757/TIL의 AWS배포환경/templates/deploy.yml을 복사하고 APP_NAME을 채운 것.
+# 브랜치는 템플릿의 master 대신 이 저장소의 실제 기본 브랜치인 main으로 수정.
 name: deploy
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   workflow_dispatch:
 
 # OIDC로 임시 자격증명을 받기 위해 필요. 장기 액세스 키를 만들지 않는 핵심.
