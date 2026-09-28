@@ -10,8 +10,9 @@ get_transactions는 필터링·정렬(최근순)을 여기서 수행 (Repository
 from dataclasses import dataclass
 from typing import Protocol
 
-from ..card_repository import CardRepository
-from ..domain import Account, Card, Transaction, TransactionFilter, TransactionType
+from ...card.domain import Card
+from ...card.repository import CardRepository
+from ..domain import Account, Transaction, TransactionFilter, TransactionType
 from ..repository import AccountRepository
 from ..transaction_repository import TransactionRepository
 

@@ -20,10 +20,6 @@ class DuplicateNicknameError(Exception):
     """같은 소유자(owner_id)의 다른 계좌와 별명이 중복될 때."""
 
 
-class CardNotFoundError(Exception):
-    """요청한 card_id의 Card가 존재하지 않을 때."""
-
-
 @dataclass
 class Account:
     account_id: str
@@ -100,15 +96,6 @@ class TransactionFilter:
     min_amount: int | None = None
     max_amount: int | None = None
     transaction_type: TransactionType | None = None
-
-
-@dataclass
-class Card:
-    """결제에 사용하는 카드. 하나의 출금 계좌에 연결됨."""
-
-    card_id: str
-    account_id: str  # 이 카드로 결제하면 출금되는 계좌
-    name: str  # 표시용 카드 이름 (예: "국민 체크카드")
 
 
 @dataclass

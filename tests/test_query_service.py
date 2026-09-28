@@ -1,9 +1,7 @@
 from datetime import date, timedelta
 
-from langgraph_mini.account.card_repository import MemoryCardRepository
 from langgraph_mini.account.domain import (
     Account,
-    Card,
     Transaction,
     TransactionFilter,
     TransactionType,
@@ -11,6 +9,8 @@ from langgraph_mini.account.domain import (
 from langgraph_mini.account.repository import MemoryAccountRepository
 from langgraph_mini.account.services.query import DefaultAccountQueryService
 from langgraph_mini.account.transaction_repository import MemoryTransactionRepository
+from langgraph_mini.card.domain import Card, CardKind
+from langgraph_mini.card.repository import MemoryCardRepository
 
 
 def _service():
@@ -66,7 +66,7 @@ def test_get_transactions_sorted_by_recent_first():
 
 def test_get_transactions_enriches_card_payment_with_card():
     service, _, tx_repo, card_repo = _service()
-    card_repo.save(Card(card_id="c1", account_id="a1", name="국민 체크카드"))
+    card_repo.save(Card(card_id="c1", account_id="a1", name="국민 체크카드", kind=CardKind.CHECK))
     tx_repo.save(
         Transaction(
             account_id="a1",
