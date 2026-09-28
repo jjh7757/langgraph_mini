@@ -1,0 +1,165 @@
+"""실제 Gemini로 돌아가는 터미널 대화 진입점.
+
+    uv run langgraph-mini                    (pyproject.toml [project.scripts])
+    또는: uv run python -m langgraph_mini.cli
+
+.env(또는 환경변수)에서 GOOGLE_API_KEY(또는 GEMINI_API_KEY)를 읽는다. data/*.json에
+실제로 읽고 쓰며(agent.wiring.build_orchestration), 프로그램을 껐다 켜도 계좌 잔액·카드
+상태·승인 대기 중이던 요청이 그대로 남아있다(재시작 복구 — 에이전트_설계.md 6절).
+
+이 프로젝트엔 "계좌 개설" 같은 생성 기능이 없어서(기존 계좌/카드/청구서를 다루는 기능만
+있음), data/ 가 비어있는 첫 실행에서는 가지고 놀 데이터가 없다 — 그래서 처음 한 번만
+데모용 계좌·카드·청구서를 만들어둔다(_ensure_demo_data).
+"""
+
+import os
+import sys
+from datetime import date, timedelta
+from pathlib import Path
+
+from dotenv import load_dotenv
+from langchain_core.messages import HumanMessage
+
+from .agent.graph import build_graph
+from .agent.wiring import build_orchestration
+
+DEMO_OWNER_ID = "demo-user"
+DEFAULT_THREAD_ID = "default"
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
+def main() -> None:
+    # Windows 콘솔 기본 코드페이지(cp949 등)로는 한글 이모지·특수문자 출력이 깨지거나
+    # UnicodeEncodeError로 죽을 수 있어서 항상 UTF-8로 강제.
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+
+    # load_dotenv()는 인자가 없으면 상위 폴더까지 올라가며 .env를 찾는데, 부트캠프
+    # 폴더처럼 다른 프로젝트의 .env가 상위에 있으면 그걸 잘못 읽어버릴 수 있어서
+    # 이 프로젝트 루트의 .env로 경로를 명시.
+    load_dotenv(PROJECT_ROOT / ".env")
+
+    if not (os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")):
+        print(
+            "GOOGLE_API_KEY(또는 GEMINI_API_KEY)가 설정돼 있지 않습니다.\n"
+            "프로젝트 루트에 .env 파일을 만들고 다음처럼 넣어주세요:\n"
+            "  GOOGLE_API_KEY=여기에_발급받은_키"
+        )
+        sys.exit(1)
+
+    # langchain_google_genai는 모듈 임포트 시점이 아니라 호출 시점에 키를 읽으므로
+    # 지연 임포트(여기서 처음 import) — API 키가 없을 때 불필요하게 무거운 임포트를
+    # 안 하게 됨(위 sys.exit(1) 이후엔 아예 안 불림).
+    from langchain_google_genai import ChatGoogleGenerativeAI
+
+    data_dir = os.environ.get("LANGGRAPH_MINI_DATA_DIR", str(PROJECT_ROOT / "data"))
+    _ensure_demo_data(data_dir)
+
+    orchestration = build_orchestration(data_dir)
+    model_name = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+    llm = ChatGoogleGenerativeAI(model=model_name, temperature=0)
+    app = build_graph(llm, orchestration)
+
+    thread_id = os.environ.get("LANGGRAPH_MINI_THREAD_ID", DEFAULT_THREAD_ID)
+    config = {"configurable": {"thread_id": thread_id, "requester_id": DEMO_OWNER_ID}}
+
+    print(f"langgraph-mini 데모 (모델: {model_name}, thread: {thread_id}). 종료: exit / quit")
+
+    if orchestration.get_pending(thread_id):
+        print("[이전에 처리하지 못한 요청이 남아있어요. 확인할게요]")
+        _run_and_handle(app, config, {"messages": []})
+
+    _repl(app, config)
+
+
+def _repl(app, config) -> None:
+    while True:
+        try:
+            text = input("나> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return
+        if text.lower() in {"exit", "quit"}:
+            return
+        if not text:
+            continue
+        _run_and_handle(app, config, {"messages": [HumanMessage(content=text)]})
+
+
+def _run_and_handle(app, config, payload) -> None:
+    """interrupt()가 나오면 그 자리에서 계속 물어보고 Command(resume=...)로 이어감."""
+    from langgraph.types import Command
+
+    result = app.invoke(payload, config=config)
+
+    while result.get("__interrupt__"):
+        question = result["__interrupt__"][0].value.get("message", "확인해주세요")
+        print(f"봇> {question}")
+        try:
+            reply = input("나> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return
+        result = app.invoke(Command(resume=reply), config=config)
+
+    messages = result.get("messages") or []
+    if messages:
+        print(f"봇> {messages[-1].content}")
+
+
+def _ensure_demo_data(data_dir: str) -> None:
+    """data/*.json이 비어있으면(처음 실행) 데모용 계좌 2개·카드 1개·청구서 1개를 만들어둔다.
+    이미 데이터가 있으면 아무것도 안 함(owner_id 기준으로 확인)."""
+    from .account.domain import Account
+    from .account.repository_json import JsonAccountRepository
+    from .billing.domain import Bill
+    from .billing.repository_json import JsonBillRepository
+    from .card.domain import Card, CardKind
+    from .card.repository_json import JsonCardRepository
+
+    path = Path(data_dir)
+    account_repo = JsonAccountRepository(path / "accounts.json")
+    if account_repo.find_by_owner_id(DEMO_OWNER_ID):
+        return
+
+    account_repo.save(
+        Account(
+            account_id="demo-acc-1", owner_id=DEMO_OWNER_ID, nickname="생활비", balance=500000
+        )
+    )
+    account_repo.save(
+        Account(
+            account_id="demo-acc-2", owner_id=DEMO_OWNER_ID, nickname="저축", balance=2000000
+        )
+    )
+
+    JsonCardRepository(path / "cards.json").save(
+        Card(
+            card_id="demo-card-1",
+            account_id="demo-acc-1",
+            name="생활비 체크카드",
+            kind=CardKind.CHECK,
+        )
+    )
+
+    JsonBillRepository(path / "bills.json").save(
+        Bill(
+            bill_id="demo-bill-1",
+            owner_id=DEMO_OWNER_ID,
+            name="전기요금",
+            amount=45000,
+            due_date=date.today() + timedelta(days=10),
+        )
+    )
+
+    print(
+        "[처음 실행 — 데모 데이터 생성: 계좌 2개(생활비/저축), 카드 1개, 청구서 1개]"
+    )
+
+
+if __name__ == "__main__":
+    main()

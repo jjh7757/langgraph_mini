@@ -1,2 +1,4 @@
 def main() -> None:
-    print("Hello from langgraph-mini!")
+    from .cli import main as cli_main
+
+    cli_main()
