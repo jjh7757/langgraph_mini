@@ -3,118 +3,986 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>virtual-financial-services 데모</title>
+<title>브이뱅크 데모</title>
 <style>
-  :root { color-scheme: dark; }
-  body {
-    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-    max-width: 640px;
-    margin: 0 auto;
-    padding: 16px;
-    background: #0b0f14;
-    color: #e6e6e6;
+  :root {
+    --primary: #17204a;
+    --accent: #4a5cf5;
+    --accent-soft: #eef0ff;
+    --mint: #12b886;
+    --danger: #e5484d;
+    --bg: #eef1f6;
+    --card: #ffffff;
+    --text: #17204a;
+    --text-sub: #737a94;
+    --border: #e7e9f2;
   }
-  h2 { font-size: 1.1rem; font-weight: 600; color: #9fb3c8; }
-  #log {
+  * { box-sizing: border-box; }
+  html, body {
+    height: 100%;
+  }
+  body {
+    font-family: "Pretendard", system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 24px 0;
+  }
+  #phone {
+    width: 100%;
+    max-width: 420px;
+    height: min(860px, calc(100vh - 48px));
+    background: var(--card);
+    border-radius: 28px;
+    box-shadow: 0 20px 60px rgba(23, 32, 74, 0.18);
+    position: relative;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    min-height: 60vh;
-    margin-bottom: 12px;
   }
-  .msg {
-    padding: 8px 12px;
-    border-radius: 10px;
-    max-width: 80%;
-    white-space: pre-wrap;
-    line-height: 1.4;
-    word-break: break-word;
-  }
-  .user { align-self: flex-end; background: #2b6cb0; }
-  .bot { align-self: flex-start; background: #2d333b; }
-  form {
+  .view { display: none; flex: 1; flex-direction: column; overflow-y: auto; min-height: 0; padding-bottom: 84px; }
+  .view.active { display: flex; }
+
+  /* ---------- 공통 헤더 ---------- */
+  .topbar {
     display: flex;
-    gap: 8px;
-    position: sticky;
-    bottom: 0;
-    background: #0b0f14;
-    padding-top: 8px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px 8px;
   }
-  input {
-    flex: 1;
-    padding: 10px;
-    border-radius: 8px;
-    border: 1px solid #444;
-    background: #14181f;
-    color: #e6e6e6;
-    font-size: 1rem;
+  .brand { font-weight: 800; font-size: 1.05rem; letter-spacing: -0.02em; }
+  .brand .dot { color: var(--accent); }
+  .topbar .icons { display: flex; gap: 14px; color: var(--text-sub); font-size: 1.1rem; }
+  .subheader {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 20px 14px;
   }
-  button {
-    padding: 10px 16px;
-    border-radius: 8px;
-    border: none;
-    background: #2b6cb0;
+  .subheader button.back {
+    border: none; background: none; font-size: 1.2rem; color: var(--text); cursor: pointer; padding: 4px;
+  }
+  .subheader h2 { font-size: 1.05rem; font-weight: 700; margin: 0; }
+
+  /* ---------- 대시보드 ---------- */
+  .greeting { padding: 0 20px 6px; font-size: 1.15rem; font-weight: 700; }
+  .greeting span { color: var(--accent); }
+  .total-card {
+    margin: 8px 20px 18px;
+    padding: 20px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, var(--primary), #2a3a8c);
     color: white;
-    font-size: 1rem;
+  }
+  .total-card .label { font-size: 0.82rem; opacity: 0.75; }
+  .total-card .amount { font-size: 1.9rem; font-weight: 800; margin-top: 6px; }
+  .quick-actions {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    padding: 0 20px 18px;
+  }
+  .quick-actions button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    border: none;
+    background: none;
+    color: var(--text);
+    font-size: 0.75rem;
     cursor: pointer;
   }
-  button:disabled { opacity: 0.5; cursor: default; }
+  .quick-actions .icon {
+    width: 46px; height: 46px;
+    border-radius: 14px;
+    background: var(--accent-soft);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem;
+  }
+  .section-title {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0 20px 8px; font-size: 0.95rem; font-weight: 700;
+  }
+  .section-title a { font-size: 0.78rem; color: var(--text-sub); font-weight: 500; text-decoration: none; }
+
+  .account-card {
+    margin: 0 20px 12px;
+    padding: 16px 18px;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    cursor: pointer;
+    transition: box-shadow 0.15s ease;
+  }
+  .account-card:active { box-shadow: 0 0 0 2px var(--accent-soft) inset; }
+  .account-card .nickname { font-size: 0.85rem; color: var(--text-sub); }
+  .account-card .number { font-size: 0.75rem; color: var(--text-sub); margin-top: 2px; }
+  .account-card .balance { font-size: 1.35rem; font-weight: 800; margin-top: 8px; }
+
+  .bill-banner {
+    margin: 0 20px 12px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: #fff4ec;
+    color: #b25b17;
+    font-size: 0.85rem;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+
+  /* ---------- 계좌 상세 / 거래내역 ---------- */
+  .detail-balance { padding: 6px 20px 16px; }
+  .detail-balance .amount { font-size: 2rem; font-weight: 800; }
+  .detail-balance .avail { font-size: 0.8rem; color: var(--text-sub); margin-top: 4px; }
+  .detail-actions {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    padding: 0 20px 18px;
+  }
+  .detail-actions button {
+    padding: 12px 0; border-radius: 12px; border: none;
+    background: var(--accent-soft); color: var(--accent);
+    font-weight: 700; font-size: 0.9rem; cursor: pointer;
+  }
+  .tx-list { padding: 0 20px; }
+  .tx-month { font-size: 0.78rem; color: var(--text-sub); padding: 10px 0 6px; }
+  .tx-row {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+  }
+  .tx-row .meta { font-size: 0.72rem; color: var(--text-sub); }
+  .tx-row .desc { font-size: 0.92rem; font-weight: 600; margin-top: 2px; }
+  .tx-row .right { text-align: right; }
+  .tx-row .delta { font-size: 0.95rem; font-weight: 700; }
+  .tx-row .delta.plus { color: var(--mint); }
+  .tx-row .delta.minus { color: var(--text); }
+  .tx-row .after { font-size: 0.72rem; color: var(--text-sub); margin-top: 2px; }
+
+  /* ---------- 이체 ---------- */
+  .transfer-step { padding: 4px 20px; flex: 1; display: flex; flex-direction: column; }
+  .field-label { font-size: 0.95rem; font-weight: 700; margin: 12px 0 10px; }
+  .recipient-list { display: flex; flex-direction: column; gap: 8px; }
+  .recipient-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; cursor: pointer;
+  }
+  .recipient-item .name { font-weight: 700; font-size: 0.92rem; }
+  .recipient-item .acc { font-size: 0.76rem; color: var(--text-sub); margin-top: 2px; }
+  .amount-display {
+    text-align: center; padding: 40px 0 20px;
+  }
+  .amount-display .to { font-size: 0.95rem; color: var(--text-sub); }
+  .amount-display .num { font-size: 2.4rem; font-weight: 800; margin-top: 10px; }
+  .amount-display .avail { font-size: 0.78rem; color: var(--text-sub); margin-top: 8px; }
+  .quick-amounts { display: flex; gap: 8px; padding: 0 0 10px; }
+  .quick-amounts button {
+    flex: 1; padding: 10px 0; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--card); font-size: 0.82rem; cursor: pointer;
+  }
+  .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: auto; padding-bottom: 8px; }
+  .keypad button {
+    padding: 16px 0; border-radius: 12px; border: none; background: #f4f5fa;
+    font-size: 1.15rem; font-weight: 600; cursor: pointer;
+  }
+  .primary-btn {
+    display: block; width: calc(100% - 40px); margin: 10px 20px 0;
+    padding: 15px 0; border: none; border-radius: 14px;
+    background: var(--accent); color: white; font-size: 1rem; font-weight: 700; cursor: pointer;
+  }
+  .primary-btn:disabled { background: #c9cdea; cursor: default; }
+  .ghost-btn {
+    display: block; width: calc(100% - 40px); margin: 10px 20px 0;
+    padding: 14px 0; border: 1px solid var(--border); border-radius: 14px;
+    background: var(--card); color: var(--text); font-size: 0.95rem; font-weight: 600; cursor: pointer;
+  }
+  .confirm-row {
+    display: flex; justify-content: space-between; padding: 12px 0;
+    border-bottom: 1px solid var(--border); font-size: 0.88rem;
+  }
+  .confirm-row .k { color: var(--text-sub); }
+  .confirm-row .v { font-weight: 700; }
+
+  .success-wrap { text-align: center; padding: 60px 30px 20px; }
+  .success-check {
+    width: 64px; height: 64px; border-radius: 50%; background: var(--mint);
+    color: white; font-size: 1.8rem; display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 18px;
+  }
+  .success-wrap .headline { font-size: 1.15rem; font-weight: 700; line-height: 1.5; }
+  .success-wrap .sub { font-size: 0.85rem; color: var(--text-sub); margin-top: 10px; }
+
+  /* ---------- 카드관리 ---------- */
+  .card-visual {
+    margin: 6px 20px 16px;
+    padding: 22px 20px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #2a3a8c, var(--accent));
+    color: white;
+    position: relative;
+    overflow: hidden;
+  }
+  .card-visual .kind { font-size: 0.78rem; opacity: 0.8; }
+  .card-visual .name { font-size: 1.1rem; font-weight: 800; margin-top: 4px; }
+  .card-visual .number { font-size: 0.95rem; letter-spacing: 0.08em; margin-top: 18px; opacity: 0.9; }
+  .card-visual .linked { font-size: 0.75rem; opacity: 0.75; margin-top: 10px; }
+  .card-status-badge {
+    position: absolute; top: 20px; right: 20px;
+    font-size: 0.72rem; font-weight: 700; padding: 4px 10px; border-radius: 20px;
+    background: rgba(255,255,255,0.18);
+  }
+  .card-status-badge.locked { background: rgba(229,72,77,0.85); }
+  .card-actions {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    padding: 0 20px 20px;
+  }
+  .card-actions button {
+    padding: 12px 0; border-radius: 12px; border: 1px solid var(--border);
+    background: var(--card); color: var(--text); font-size: 0.82rem; font-weight: 600; cursor: pointer;
+  }
+  .card-actions button.danger { color: var(--danger); border-color: #f6c9ca; }
+  .card-actions button:disabled { opacity: 0.45; cursor: default; }
+
+  /* ---------- 청구서 ---------- */
+  .bill-summary {
+    margin: 6px 20px 16px; padding: 18px 20px; border-radius: 18px;
+    background: var(--accent-soft); color: var(--primary);
+  }
+  .bill-summary .label { font-size: 0.82rem; color: var(--text-sub); }
+  .bill-summary .amount { font-size: 1.6rem; font-weight: 800; margin-top: 4px; }
+  .bill-summary button {
+    margin-top: 12px; width: 100%; padding: 11px 0; border: none; border-radius: 10px;
+    background: var(--accent); color: white; font-weight: 700; font-size: 0.88rem; cursor: pointer;
+  }
+  .bill-summary button:disabled { background: #c9cdea; cursor: default; }
+  .bill-row {
+    margin: 0 20px 10px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .bill-row .name { font-weight: 700; font-size: 0.92rem; }
+  .bill-row .due { font-size: 0.76rem; color: var(--text-sub); margin-top: 3px; }
+  .bill-row .amount { font-weight: 700; font-size: 0.95rem; margin-top: 6px; }
+  .bill-row .pay-btn {
+    padding: 9px 14px; border: none; border-radius: 10px; background: var(--accent);
+    color: white; font-size: 0.8rem; font-weight: 700; cursor: pointer;
+  }
+  .bill-row.paid { opacity: 0.55; }
+  .bill-row .paid-tag { font-size: 0.78rem; color: var(--mint); font-weight: 700; }
+
+  /* ---------- 토스트 ---------- */
+  #toast {
+    position: absolute; left: 20px; right: 20px; top: 16px;
+    background: var(--primary); color: white; padding: 12px 16px; border-radius: 12px;
+    font-size: 0.85rem; text-align: center; z-index: 40;
+    opacity: 0; transform: translateY(-8px); transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+  }
+  #toast.show { opacity: 1; transform: translateY(0); }
+
+  /* ---------- 하단 네비게이션 ---------- */
+  #bottom-nav {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    display: flex; background: var(--card); border-top: 1px solid var(--border);
+    padding: 8px 4px 12px;
+  }
+  #bottom-nav button {
+    flex: 1; border: none; background: none; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    font-size: 0.7rem; color: var(--text-sub);
+  }
+  #bottom-nav button .icon { font-size: 1.25rem; }
+  #bottom-nav button.active { color: var(--accent); font-weight: 700; }
+
+  /* ---------- 챗봇 ---------- */
+  #chat-fab {
+    position: absolute; right: 18px; bottom: 92px;
+    width: 54px; height: 54px; border-radius: 50%;
+    background: var(--accent); color: white; border: none;
+    font-size: 1.4rem; cursor: pointer;
+    box-shadow: 0 10px 24px rgba(74, 92, 245, 0.45);
+    z-index: 20;
+  }
+  #chat-panel {
+    position: absolute; inset: 0; background: var(--card);
+    display: none; flex-direction: column; z-index: 30;
+  }
+  #chat-panel.open { display: flex; }
+  .chat-header {
+    background: var(--primary); color: white;
+    padding: 16px 18px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .chat-header .title { font-weight: 700; font-size: 0.95rem; }
+  .chat-header button {
+    border: none; background: rgba(255,255,255,0.15); color: white;
+    border-radius: 20px; padding: 6px 12px; font-size: 0.78rem; cursor: pointer;
+  }
+  #log { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; background: #f7f8fc; }
+  .msg { max-width: 78%; padding: 10px 14px; border-radius: 14px; font-size: 0.9rem; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+  .msg.user { align-self: flex-end; background: var(--accent); color: white; border-bottom-right-radius: 4px; }
+  .msg.bot { align-self: flex-start; background: white; border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .confirm-card {
+    align-self: flex-start; max-width: 82%;
+    background: white; border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px; font-size: 0.88rem;
+  }
+  .confirm-card .q { margin-bottom: 10px; line-height: 1.5; }
+  .confirm-card .opt {
+    width: 100%; text-align: left; padding: 11px 14px; margin-top: 6px;
+    border: 1px solid var(--border); border-radius: 10px; background: white;
+    font-size: 0.86rem; cursor: pointer;
+  }
+  .confirm-card .opt:hover { border-color: var(--accent); color: var(--accent); }
+  .chat-input-bar {
+    display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); background: white;
+  }
+  .chat-input-bar input {
+    flex: 1; padding: 11px 14px; border-radius: 20px; border: 1px solid var(--border);
+    font-size: 0.9rem; outline: none;
+  }
+  .chat-input-bar button {
+    padding: 0 18px; border-radius: 20px; border: none; background: var(--accent);
+    color: white; font-weight: 700; cursor: pointer;
+  }
+  .chat-input-bar button:disabled { opacity: 0.5; }
 </style>
 </head>
 <body>
-  <h2>은행 업무 도우미 데모</h2>
-  <div id="log"></div>
-  <form id="form">
-    <input id="input" autocomplete="off" placeholder="메시지를 입력하세요" />
-    <button id="send">전송</button>
-  </form>
-  <script>
-    const log = document.getElementById("log");
-    const form = document.getElementById("form");
-    const input = document.getElementById("input");
-    const sendBtn = document.getElementById("send");
-    let threadId = null;
+<div id="phone">
+  <div id="toast"></div>
 
-    function addMessage(text, who) {
-      const div = document.createElement("div");
-      div.className = "msg " + who;
-      div.textContent = text;
-      log.appendChild(div);
-      div.scrollIntoView({ behavior: "smooth", block: "end" });
+  <!-- ================= 대시보드 ================= -->
+  <div class="view active" id="view-dashboard">
+    <div class="topbar">
+      <div class="brand">브이<span class="dot">•</span>뱅크</div>
+      <div class="icons"><span>&#128276;</span><span>&#9776;</span></div>
+    </div>
+    <div class="greeting">안녕하세요, <span>홍길동</span>님</div>
+
+    <div class="total-card">
+      <div class="label">전체 자산</div>
+      <div class="amount" id="total-balance">0원</div>
+    </div>
+
+    <div class="quick-actions">
+      <button onclick="openTransfer()"><span class="icon">&#8644;</span>이체</button>
+      <button onclick="showView('accounts')"><span class="icon">&#128179;</span>계좌조회</button>
+      <button onclick="openCards()"><span class="icon">&#128179;</span>카드관리</button>
+      <button onclick="openBills()"><span class="icon">&#128203;</span>청구서</button>
+    </div>
+
+    <div class="bill-banner" id="dashboard-bill-banner" onclick="openBills()" style="cursor:pointer;">
+      <span id="dashboard-bill-text">전기요금 45,000원이 곧 청구될 예정이에요</span>
+      <span>&#8250;</span>
+    </div>
+
+    <div class="section-title">내 계좌 <a href="#" onclick="showView('accounts'); return false;">전체보기 &gt;</a></div>
+    <div id="dashboard-accounts"></div>
+  </div>
+
+  <!-- ================= 전체계좌조회 ================= -->
+  <div class="view" id="view-accounts">
+    <div class="subheader">
+      <button class="back" onclick="showView('dashboard')">&#8592;</button>
+      <h2>전체계좌조회</h2>
+    </div>
+    <div class="section-title">예금 · 적금</div>
+    <div id="accounts-list"></div>
+  </div>
+
+  <!-- ================= 계좌상세 / 거래내역 ================= -->
+  <div class="view" id="view-account-detail">
+    <div class="subheader">
+      <button class="back" onclick="showView('accounts')">&#8592;</button>
+      <h2 id="detail-title">계좌</h2>
+    </div>
+    <div class="detail-balance">
+      <div class="amount" id="detail-amount">0원</div>
+      <div class="avail" id="detail-avail">출금가능금액 0원</div>
+    </div>
+    <div class="detail-actions">
+      <button onclick="openTransferFrom()">이체</button>
+      <button onclick="showView('accounts')">거래내역조회</button>
+    </div>
+    <div class="tx-list">
+      <div class="tx-month">2026.09</div>
+      <div id="tx-rows"></div>
+    </div>
+  </div>
+
+  <!-- ================= 카드관리 ================= -->
+  <div class="view" id="view-cards">
+    <div class="subheader">
+      <button class="back" onclick="showView('dashboard')">&#8592;</button>
+      <h2>카드관리</h2>
+    </div>
+    <div id="cards-list"></div>
+  </div>
+
+  <!-- ================= 청구서 ================= -->
+  <div class="view" id="view-bills">
+    <div class="subheader">
+      <button class="back" onclick="showView('dashboard')">&#8592;</button>
+      <h2>청구서</h2>
+    </div>
+    <div class="bill-summary">
+      <div class="label" id="bill-summary-label">미납 청구서</div>
+      <div class="amount" id="bill-summary-amount">0원</div>
+      <button id="bill-pay-all" onclick="payAllBills()">전체 납부하기</button>
+    </div>
+    <div class="section-title">청구 내역</div>
+    <div id="bills-list"></div>
+  </div>
+
+  <!-- ================= 이체: 받는사람 ================= -->
+  <div class="view" id="view-transfer-recipient">
+    <div class="subheader">
+      <button class="back" onclick="showView('dashboard')">&#8592;</button>
+      <h2>이체</h2>
+    </div>
+    <div class="transfer-step">
+      <div class="field-label">누구에게 보낼까요?</div>
+      <div class="recipient-list" id="recipient-list"></div>
+    </div>
+  </div>
+
+  <!-- ================= 이체: 금액 ================= -->
+  <div class="view" id="view-transfer-amount">
+    <div class="subheader">
+      <button class="back" onclick="showView('transfer-recipient')">&#8592;</button>
+      <h2>이체</h2>
+    </div>
+    <div class="transfer-step">
+      <div class="amount-display">
+        <div class="to" id="amount-to">받는 분</div>
+        <div class="num" id="amount-num">0원</div>
+        <div class="avail" id="amount-avail">출금가능금액 0원</div>
+      </div>
+      <div class="quick-amounts">
+        <button onclick="setAmount('all')">전액</button>
+        <button onclick="addAmount(100000)">10만</button>
+        <button onclick="addAmount(50000)">5만</button>
+        <button onclick="addAmount(10000)">1만</button>
+      </div>
+      <div class="keypad">
+        <button onclick="typeDigit('1')">1</button><button onclick="typeDigit('2')">2</button><button onclick="typeDigit('3')">3</button>
+        <button onclick="typeDigit('4')">4</button><button onclick="typeDigit('5')">5</button><button onclick="typeDigit('6')">6</button>
+        <button onclick="typeDigit('7')">7</button><button onclick="typeDigit('8')">8</button><button onclick="typeDigit('9')">9</button>
+        <button onclick="clearAmount()">C</button><button onclick="typeDigit('0')">0</button><button onclick="backspaceAmount()">&#9003;</button>
+      </div>
+      <button class="primary-btn" id="amount-confirm" onclick="goConfirm()" disabled>확인</button>
+    </div>
+  </div>
+
+  <!-- ================= 이체: 확인 ================= -->
+  <div class="view" id="view-transfer-confirm">
+    <div class="subheader">
+      <button class="back" onclick="showView('transfer-amount')">&#8592;</button>
+      <h2>이체 확인</h2>
+    </div>
+    <div class="transfer-step">
+      <div class="amount-display">
+        <div class="num" id="confirm-num">0원</div>
+      </div>
+      <div class="confirm-row"><span class="k">출금계좌</span><span class="v" id="confirm-from">-</span></div>
+      <div class="confirm-row"><span class="k">받는분</span><span class="v" id="confirm-to">-</span></div>
+      <div class="confirm-row"><span class="k">수수료</span><span class="v">면제</span></div>
+    </div>
+    <button class="primary-btn" onclick="doTransfer()">이체</button>
+    <button class="ghost-btn" onclick="showView('dashboard')">취소</button>
+  </div>
+
+  <!-- ================= 이체: 완료 ================= -->
+  <div class="view" id="view-transfer-done">
+    <div class="subheader">
+      <h2>이체 완료</h2>
+    </div>
+    <div class="success-wrap">
+      <div class="success-check">&#10003;</div>
+      <div class="headline" id="done-headline">이체가 완료되었습니다</div>
+      <div class="sub">수수료 면제</div>
+    </div>
+    <button class="primary-btn" onclick="showView('dashboard')">홈으로</button>
+    <button class="ghost-btn" onclick="showView('accounts')">거래내역조회</button>
+  </div>
+
+  <!-- ================= 하단 네비게이션 ================= -->
+  <div id="bottom-nav">
+    <button data-nav="dashboard" onclick="showView('dashboard')"><span class="icon">&#127968;</span>홈</button>
+    <button data-nav="accounts" onclick="showView('accounts')"><span class="icon">&#128179;</span>전체계좌</button>
+    <button data-nav="transfer" onclick="openTransfer()"><span class="icon">&#8644;</span>이체</button>
+  </div>
+
+  <!-- ================= 챗봇 ================= -->
+  <button id="chat-fab" onclick="openChat()">&#128172;</button>
+  <div id="chat-panel">
+    <div class="chat-header">
+      <span class="title">브이뱅크 상담</span>
+      <button onclick="closeChat()">닫기</button>
+    </div>
+    <div id="log"></div>
+    <form class="chat-input-bar" id="form">
+      <input id="input" autocomplete="off" placeholder="메시지를 입력하세요" />
+      <button id="send">전송</button>
+    </form>
+  </div>
+
+</div>
+
+<script>
+  /* ---------------- 서버 상태 (실 API로 채워짐) ---------------- */
+  const DEFAULT_BILL_ACCOUNT_ID = "demo-acc-1"; // 청구서는 계좌에 안 묶여있어서 납부계좌를 골라야 함 — 생활비로 고정(단순화)
+  let accounts = [];
+  let cards = [];
+  let bills = [];
+
+  const won = (n) => n.toLocaleString("ko-KR") + "원";
+  const fmtDate = (iso) => iso.replaceAll("-", ".");
+  const fmtDateTime = (iso) => {
+    const d = new Date(iso);
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  let toastTimer = null;
+  function showToast(text) {
+    const el = document.getElementById("toast");
+    el.textContent = text;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove("show"), 2200);
+  }
+
+  async function apiGet(path) {
+    const res = await fetch(path);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || "요청을 처리할 수 없습니다");
+    return data;
+  }
+  async function apiPost(path, body) {
+    const res = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body || {}),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || "요청을 처리할 수 없습니다");
+    return data;
+  }
+
+  async function loadAccounts() { accounts = await apiGet("/api/accounts"); }
+  async function loadCards() { cards = await apiGet("/api/cards"); }
+  async function loadBills() { bills = await apiGet("/api/bills"); }
+
+  function accountNickname(accountId) {
+    const acc = accounts.find((a) => a.account_id === accountId);
+    return acc ? acc.nickname : accountId;
+  }
+
+  function renderAccountCard(acc, clickable) {
+    const div = document.createElement("div");
+    div.className = "account-card";
+    div.innerHTML = `
+      <div class="nickname">브이뱅크ONE통장 · ${acc.nickname}</div>
+      <div class="number">${acc.account_id}</div>
+      <div class="balance">${won(acc.balance)}</div>`;
+    if (clickable) div.onclick = () => openAccountDetail(acc.account_id);
+    return div;
+  }
+
+  function renderDashboard() {
+    const total = accounts.reduce((s, a) => s + a.balance, 0);
+    document.getElementById("total-balance").textContent = won(total);
+    const wrap = document.getElementById("dashboard-accounts");
+    wrap.innerHTML = "";
+    accounts.forEach((a) => wrap.appendChild(renderAccountCard(a, true)));
+  }
+
+  function renderAccountsList() {
+    const wrap = document.getElementById("accounts-list");
+    wrap.innerHTML = "";
+    accounts.forEach((a) => wrap.appendChild(renderAccountCard(a, true)));
+  }
+
+  const TX_LABEL = {
+    TRANSFER_OUT: (t) => `이체 · ${accountNickname(t.counterpart_id)} 계좌로`,
+    TRANSFER_IN: (t) => `이체입금 · ${accountNickname(t.counterpart_id)} 계좌에서`,
+    CARD_PAYMENT: (t) => `체크카드 · ${t.card ? t.card.name : "카드결제"}`,
+    BILL_PAYMENT: () => "청구서납부",
+  };
+  const TX_SIGN = { TRANSFER_OUT: -1, TRANSFER_IN: 1, CARD_PAYMENT: -1, BILL_PAYMENT: -1 };
+
+  let currentAccountId = null;
+  async function openAccountDetail(id) {
+    currentAccountId = id;
+    const acc = accounts.find((a) => a.account_id === id);
+    document.getElementById("detail-title").textContent = acc.nickname;
+    document.getElementById("detail-amount").textContent = won(acc.balance);
+    document.getElementById("detail-avail").textContent = "출금가능금액 " + won(acc.balance);
+    showView("account-detail");
+
+    const rows = document.getElementById("tx-rows");
+    rows.innerHTML = "";
+    let transactions;
+    try {
+      transactions = await apiGet(`/api/accounts/${id}/transactions`);
+    } catch (err) {
+      showToast(err.message);
+      return;
     }
+    // 서버는 최신순으로 내려주고 "거래 후 잔액"은 도메인에 없는 값이라, 현재 잔액에서부터
+    // 거꾸로 누적 계산한다(after[0] = 현재 잔액, after[i+1] = after[i] - 그 거래의 부호 있는 금액).
+    let after = acc.balance;
+    transactions.forEach((t) => {
+      const signed = TX_SIGN[t.transaction_type] * t.amount;
+      const row = document.createElement("div");
+      row.className = "tx-row";
+      row.innerHTML = `
+        <div>
+          <div class="meta">${fmtDateTime(t.created_at)}</div>
+          <div class="desc">${TX_LABEL[t.transaction_type](t)}</div>
+        </div>
+        <div class="right">
+          <div class="delta ${signed > 0 ? "plus" : "minus"}">${signed > 0 ? "+" : "-"}${won(Math.abs(signed))}</div>
+          <div class="after">${won(after)}</div>
+        </div>`;
+      rows.appendChild(row);
+      after -= signed;
+    });
+  }
 
-    async function init() {
-      const res = await fetch("/api/session", { method: "POST" });
-      const data = await res.json();
-      threadId = data.thread_id;
-      addMessage("안녕하세요! 계좌·카드·청구서 관련 요청을 말씀해주세요.", "bot");
+  /* ---------------- 카드관리 ---------------- */
+  async function openCards() {
+    try {
+      await loadCards();
+    } catch (err) {
+      showToast(err.message);
+      return;
     }
+    renderCards();
+    showView("cards");
+  }
 
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const text = input.value.trim();
-      if (!text || !threadId) return;
-      addMessage(text, "user");
-      input.value = "";
-      sendBtn.disabled = true;
-      try {
-        const res = await fetch(`/api/chat/${threadId}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: text }),
-        });
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        const data = await res.json();
-        addMessage(data.reply, "bot");
-      } catch (err) {
-        addMessage("오류가 발생했습니다. 잠시 후 다시 시도해주세요.", "bot");
-      } finally {
-        sendBtn.disabled = false;
-        input.focus();
-      }
+  function renderCards() {
+    const wrap = document.getElementById("cards-list");
+    wrap.innerHTML = "";
+    cards.forEach((c) => {
+      const visual = document.createElement("div");
+      visual.className = "card-visual";
+      visual.innerHTML = `
+        <div class="card-status-badge ${c.status === "USABLE" ? "" : "locked"}">${c.status === "USABLE" ? "정상" : c.status === "LOCKED" ? "일시잠금" : "분실정지"}</div>
+        <div class="kind">${c.kind}카드</div>
+        <div class="name">${c.name}</div>
+        <div class="linked">연결계좌 · ${accountNickname(c.account_id)} ${c.account_id}</div>`;
+      wrap.appendChild(visual);
+
+      const actions = document.createElement("div");
+      actions.className = "card-actions";
+      const lost = c.status === "LOST";
+      const locked = c.status === "LOCKED";
+      actions.innerHTML = `
+        <button class="danger" ${lost ? "disabled" : ""} onclick="reportLost('${c.card_id}')">분실신고</button>
+        <button ${lost ? "disabled" : ""} onclick="toggleLock('${c.card_id}')">${locked ? "잠금해제" : "일시잠금"}</button>
+        <button ${lost ? "" : "disabled"} onclick="reissueCard('${c.card_id}')">재발급</button>`;
+      wrap.appendChild(actions);
+    });
+  }
+  async function reportLost(id) {
+    try {
+      const card = await apiPost(`/api/cards/${id}/lost`);
+      cards = cards.map((c) => (c.card_id === id ? card : c));
+      renderCards();
+      showToast(`${card.name} 분실신고가 접수되었습니다`);
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+  async function toggleLock(id) {
+    const current = cards.find((c) => c.card_id === id);
+    const action = current.status === "LOCKED" ? "unlock" : "lock";
+    try {
+      const card = await apiPost(`/api/cards/${id}/${action}`);
+      cards = cards.map((c) => (c.card_id === id ? card : c));
+      renderCards();
+      showToast(action === "lock" ? `${card.name}이 일시잠금 되었습니다` : `${card.name} 잠금이 해제되었습니다`);
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+  async function reissueCard(id) {
+    // 배송지 선택 UI는 이번 범위에서 생략 — 항상 집으로 배송 신청(단순화)
+    try {
+      await apiPost(`/api/cards/${id}/reissue`, { delivery_address: "HOME" });
+      showToast("재발급 신청이 접수되었습니다 (배송지: 집)");
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  /* ---------------- 청구서 ---------------- */
+  async function openBills() {
+    try {
+      await loadBills();
+    } catch (err) {
+      showToast(err.message);
+      return;
+    }
+    renderBills();
+    showView("bills");
+  }
+
+  function renderBills() {
+    const total = bills.reduce((s, b) => s + b.amount, 0);
+    document.getElementById("bill-summary-label").textContent = `미납 청구서 ${bills.length}건`;
+    document.getElementById("bill-summary-amount").textContent = won(total);
+    const payAllBtn = document.getElementById("bill-pay-all");
+    payAllBtn.disabled = bills.length === 0;
+    payAllBtn.textContent = bills.length === 0 ? "미납 청구서가 없어요" : "전체 납부하기";
+
+    const wrap = document.getElementById("bills-list");
+    wrap.innerHTML = "";
+    bills.forEach((b) => {
+      const row = document.createElement("div");
+      row.className = "bill-row";
+      row.innerHTML = `
+        <div>
+          <div class="name">${b.name}</div>
+          <div class="due">납부기한 ${fmtDate(b.due_date)}</div>
+          <div class="amount">${won(b.amount)}</div>
+        </div>
+        <button class="pay-btn" onclick="payBill('${b.bill_id}')">납부하기</button>`;
+      wrap.appendChild(row);
     });
 
-    init();
-  </script>
+    const bannerText = bills.length > 0
+      ? `${bills[0].name} ${won(bills[0].amount)}이 곧 청구될 예정이에요`
+      : "납부할 청구서가 없어요";
+    document.getElementById("dashboard-bill-text").textContent = bannerText;
+  }
+  async function payBill(id) {
+    try {
+      await apiPost(`/api/bills/${id}/pay`, { account_id: DEFAULT_BILL_ACCOUNT_ID });
+      await Promise.all([loadAccounts(), loadBills()]);
+      renderDashboard();
+      renderAccountsList();
+      renderBills();
+      showToast("납부가 완료되었습니다");
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+  async function payAllBills() {
+    if (bills.length === 0) return;
+    try {
+      await apiPost("/api/bills/pay-all", {
+        account_id: DEFAULT_BILL_ACCOUNT_ID,
+        bill_ids: bills.map((b) => b.bill_id),
+      });
+      await Promise.all([loadAccounts(), loadBills()]);
+      renderDashboard();
+      renderAccountsList();
+      renderBills();
+      showToast("전체 청구서 납부가 완료되었습니다");
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  /* ---------------- 화면 전환 ---------------- */
+  function showView(name) {
+    document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
+    document.getElementById("view-" + name).classList.add("active");
+    document.querySelectorAll("#bottom-nav button").forEach((b) => b.classList.remove("active"));
+    const navMap = { dashboard: "dashboard", accounts: "accounts", "account-detail": "accounts", transfer: "transfer" };
+    const nav = navMap[name];
+    if (nav) {
+      const btn = document.querySelector(`#bottom-nav button[data-nav="${nav}"]`);
+      if (btn) btn.classList.add("active");
+    }
+  }
+
+  /* ---------------- 이체 플로우 ---------------- */
+  // 받는사람은 항상 "내 다른 계좌"로 제한 — 이 프로젝트엔 계좌 개설/외부 수취인 등록 기능이
+  // 없어서 실제 존재하는 계좌끼리만 이체가 가능함(백엔드 account.transfer가 요구하는 그대로).
+  let transfer = { fromId: null, to: null, amount: 0 };
+
+  function openTransfer() {
+    transfer = { fromId: accounts[0] ? accounts[0].account_id : null, to: null, amount: 0 };
+    renderRecipients();
+    showView("transfer-recipient");
+  }
+  function openTransferFrom() {
+    transfer = { fromId: currentAccountId, to: null, amount: 0 };
+    renderRecipients();
+    showView("transfer-recipient");
+  }
+  function renderRecipients() {
+    const wrap = document.getElementById("recipient-list");
+    wrap.innerHTML = "";
+    accounts
+      .filter((a) => a.account_id !== transfer.fromId)
+      .forEach((a) => {
+        const div = document.createElement("div");
+        div.className = "recipient-item";
+        div.innerHTML = `<div><div class="name">${a.nickname} 계좌 (내 계좌)</div><div class="acc">브이뱅크 ${a.account_id}</div></div><span>&#8250;</span>`;
+        div.onclick = () => {
+          transfer.to = { name: a.nickname, accountId: a.account_id };
+          transfer.amount = 0;
+          const from = accounts.find((x) => x.account_id === transfer.fromId);
+          document.getElementById("amount-to").textContent = a.nickname + " 계좌로";
+          document.getElementById("amount-avail").textContent = "출금가능금액 " + won(from.balance);
+          renderAmount();
+          document.getElementById("amount-confirm").disabled = true;
+          showView("transfer-amount");
+        };
+        wrap.appendChild(div);
+      });
+  }
+  function renderAmount() {
+    document.getElementById("amount-num").textContent = won(transfer.amount);
+    document.getElementById("amount-confirm").disabled = transfer.amount <= 0;
+  }
+  function typeDigit(d) {
+    const from = accounts.find((a) => a.account_id === transfer.fromId);
+    const next = transfer.amount * 10 + Number(d);
+    if (next > from.balance) return;
+    transfer.amount = next;
+    renderAmount();
+  }
+  function addAmount(v) {
+    const from = accounts.find((a) => a.account_id === transfer.fromId);
+    transfer.amount = Math.min(from.balance, transfer.amount + v);
+    renderAmount();
+  }
+  function setAmount(kind) {
+    const from = accounts.find((a) => a.account_id === transfer.fromId);
+    if (kind === "all") transfer.amount = from.balance;
+    renderAmount();
+  }
+  function clearAmount() { transfer.amount = 0; renderAmount(); }
+  function backspaceAmount() {
+    transfer.amount = Math.floor(transfer.amount / 10);
+    renderAmount();
+  }
+  function goConfirm() {
+    const from = accounts.find((a) => a.account_id === transfer.fromId);
+    document.getElementById("confirm-num").textContent = won(transfer.amount);
+    document.getElementById("confirm-from").textContent = `브이뱅크 ${from.nickname} ${from.account_id}`;
+    document.getElementById("confirm-to").textContent = `${transfer.to.name} 계좌 (${transfer.to.accountId})`;
+    showView("transfer-confirm");
+  }
+  async function doTransfer() {
+    try {
+      accounts = await apiPost("/api/transfer", {
+        from_id: transfer.fromId, to_id: transfer.to.accountId, amount: transfer.amount,
+      });
+      renderDashboard();
+      renderAccountsList();
+      document.getElementById("done-headline").textContent =
+        `${transfer.to.name} 계좌로 ${won(transfer.amount)} 이체가 완료되었습니다`;
+      showView("transfer-done");
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  /* ---------------- 챗봇 (기존 로직 그대로 유지) ---------------- */
+  const log = document.getElementById("log");
+  const form = document.getElementById("form");
+  const input = document.getElementById("input");
+  const sendBtn = document.getElementById("send");
+  let threadId = null;
+  let chatStarted = false;
+
+  function addMessage(text, who) {
+    const div = document.createElement("div");
+    div.className = "msg " + who;
+    div.textContent = text;
+    log.appendChild(div);
+    div.scrollIntoView({ behavior: "smooth", block: "end" });
+  }
+
+  function addConfirmCard(question) {
+    const div = document.createElement("div");
+    div.className = "confirm-card";
+    div.innerHTML = `<div class="q">${question}</div>`;
+    ["승인", "거절", "다시 말할게요"].forEach((label) => {
+      const btn = document.createElement("button");
+      btn.className = "opt";
+      btn.textContent = label;
+      btn.onclick = () => {
+        div.querySelectorAll(".opt").forEach((b) => (b.disabled = true));
+        const reply = label === "다시 말할게요" ? "" : label === "승인" ? "응 진행해줘" : "아니 취소할게";
+        if (reply) sendMessage(reply, true);
+      };
+      div.appendChild(btn);
+    });
+    log.appendChild(div);
+    div.scrollIntoView({ behavior: "smooth", block: "end" });
+  }
+
+  async function initChat() {
+    const res = await fetch("/api/session", { method: "POST" });
+    const data = await res.json();
+    threadId = data.thread_id;
+    addMessage("안녕하세요! 계좌·카드·청구서 관련 요청을 말씀해주세요.", "bot");
+  }
+
+  async function sendMessage(text, skipEcho) {
+    if (!text || !threadId) return;
+    if (!skipEcho) addMessage(text, "user");
+    sendBtn.disabled = true;
+    try {
+      const res = await fetch(`/api/chat/${threadId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text }),
+      });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      if (data.waiting_for_confirmation) {
+        addConfirmCard(data.reply);
+      } else {
+        addMessage(data.reply, "bot");
+      }
+    } catch (err) {
+      addMessage("오류가 발생했습니다. 잠시 후 다시 시도해주세요.", "bot");
+    } finally {
+      sendBtn.disabled = false;
+      input.focus();
+    }
+  }
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const text = input.value.trim();
+    input.value = "";
+    sendMessage(text, false);
+  });
+
+  function openChat() {
+    document.getElementById("chat-panel").classList.add("open");
+    if (!chatStarted) {
+      chatStarted = true;
+      initChat();
+    }
+  }
+  function closeChat() {
+    document.getElementById("chat-panel").classList.remove("open");
+  }
+
+  /* ---------------- 초기화 ---------------- */
+  (async () => {
+    try {
+      await Promise.all([loadAccounts(), loadBills()]);
+      renderDashboard();
+      renderAccountsList();
+      renderBills();
+    } catch (err) {
+      showToast(err.message);
+    }
+    showView("dashboard");
+  })();
+</script>
 </body>
 </html>
