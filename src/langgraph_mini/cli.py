@@ -60,7 +60,11 @@ def main() -> None:
 
     orchestration = build_orchestration(data_dir)
     model_name = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
-    llm = ChatGoogleGenerativeAI(model=model_name, temperature=0)
+    # thinking_budget 기본값(-1, "동적")으로 두면 tool 22개 + system prompt를 한꺼번에
+    # bind했을 때 모델이 thinking에 예산을 전부 써버리고 응답(tool_call도 없이) 없이
+    # 끝나버리는 문제가 실제로 재현됨(고정 예산을 주면 해결됨 — 직접 확인).
+    thinking_budget = int(os.environ.get("GEMINI_THINKING_BUDGET", "1024"))
+    llm = ChatGoogleGenerativeAI(model=model_name, temperature=0, thinking_budget=thinking_budget)
     app = build_graph(llm, orchestration)
 
     thread_id = os.environ.get("LANGGRAPH_MINI_THREAD_ID", DEFAULT_THREAD_ID)

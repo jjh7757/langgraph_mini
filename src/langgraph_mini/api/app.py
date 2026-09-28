@@ -55,7 +55,11 @@ async def lifespan(app: FastAPI):
     from langchain_google_genai import ChatGoogleGenerativeAI
 
     model_name = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
-    llm = ChatGoogleGenerativeAI(model=model_name, temperature=0)
+    # cli.py와 동일한 이유로 thinking_budget을 고정 — 기본값(-1, "동적")이면 tool 22개
+    # + system prompt를 한꺼번에 bind했을 때 모델이 thinking에 예산을 전부 써버리고
+    # 응답 없이 끝나버리는 문제가 실제로 재현됨(cli.py 주석 참고).
+    thinking_budget = int(os.environ.get("GEMINI_THINKING_BUDGET", "1024"))
+    llm = ChatGoogleGenerativeAI(model=model_name, temperature=0, thinking_budget=thinking_budget)
     orchestration = build_orchestration_sql(redis_client)
 
     _state["pool"] = pool
