@@ -8,3 +8,6 @@ wheels/
 
 # Virtual environments
 .venv
+
+# JSON 파일 저장소 (런타임 데이터 — repository_json.py들이 씀)
+data/
