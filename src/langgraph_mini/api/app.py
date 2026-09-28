@@ -10,6 +10,7 @@ confirmation.py, propose_tools.py, context.py는 전혀 건드리지 않는다.
 쓰기는 요청(한 턴)마다 request_transaction()으로 감싸 트랜잭션 경계를 만든다.
 """
 
+import logging
 import os
 import uuid
 from contextlib import asynccontextmanager
@@ -17,11 +18,13 @@ from pathlib import Path
 
 import redis
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from langchain_core.messages import HumanMessage
 from langgraph.types import Command
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 from ..account.repository_sql import SqlAccountRepository
 from ..agent.demo_data import DEMO_OWNER_ID, ensure_demo_data
@@ -52,18 +55,29 @@ async def lifespan(app: FastAPI):
     with request_transaction(pool):
         ensure_demo_data(SqlAccountRepository(), SqlCardRepository(), SqlBillRepository())
 
-    from langchain_google_genai import ChatGoogleGenerativeAI
-
-    model_name = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
-    # cli.py와 동일한 이유로 thinking_budget을 고정 — 기본값(-1, "동적")이면 tool 22개
-    # + system prompt를 한꺼번에 bind했을 때 모델이 thinking에 예산을 전부 써버리고
-    # 응답 없이 끝나버리는 문제가 실제로 재현됨(cli.py 주석 참고).
-    thinking_budget = int(os.environ.get("GEMINI_THINKING_BUDGET", "1024"))
-    llm = ChatGoogleGenerativeAI(model=model_name, temperature=0, thinking_budget=thinking_budget)
-    orchestration = build_orchestration_sql(redis_client)
-
     _state["pool"] = pool
-    _state["graph_app"] = build_graph(llm, orchestration)
+
+    # GOOGLE_API_KEY/GEMINI_API_KEY가 없으면 여기서 죽지 않게 함 — DB 마이그레이션이나
+    # 배포 파이프라인 점검처럼 LLM 없이도 헬스체크(GET /)는 확인하고 싶을 때가 있어서,
+    # 없으면 경고만 남기고 graph_app을 None으로 둔다(채팅 엔드포인트가 503으로 안내).
+    if os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY"):
+        from langchain_google_genai import ChatGoogleGenerativeAI
+
+        model_name = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+        # cli.py와 동일한 이유로 thinking_budget을 고정 — 기본값(-1, "동적")이면 tool 22개
+        # + system prompt를 한꺼번에 bind했을 때 모델이 thinking에 예산을 전부 써버리고
+        # 응답 없이 끝나버리는 문제가 실제로 재현됨(cli.py 주석 참고).
+        thinking_budget = int(os.environ.get("GEMINI_THINKING_BUDGET", "1024"))
+        llm = ChatGoogleGenerativeAI(
+            model=model_name, temperature=0, thinking_budget=thinking_budget
+        )
+        orchestration = build_orchestration_sql(redis_client)
+        _state["graph_app"] = build_graph(llm, orchestration)
+    else:
+        logger.warning(
+            "GOOGLE_API_KEY/GEMINI_API_KEY가 없어 채팅 기능을 켜지 않았습니다 "
+            "(헬스체크·정적 페이지는 정상 동작). .env 채운 뒤 재시작하세요."
+        )
 
     yield
 
@@ -94,8 +108,15 @@ def new_session() -> dict:
 
 @app.post("/api/chat/{thread_id}")
 def chat(thread_id: str, body: ChatMessage) -> JSONResponse:
-    config = {"configurable": {"thread_id": thread_id, "requester_id": DEMO_OWNER_ID}}
     graph_app = _state["graph_app"]
+    if graph_app is None:
+        raise HTTPException(
+            status_code=503,
+            detail="GOOGLE_API_KEY가 설정되지 않아 채팅 기능을 쓸 수 없습니다. "
+            "서버 .env를 채운 뒤 재시작해주세요.",
+        )
+
+    config = {"configurable": {"thread_id": thread_id, "requester_id": DEMO_OWNER_ID}}
 
     with request_transaction(_state["pool"]):
         if thread_id in _interrupted_threads:
