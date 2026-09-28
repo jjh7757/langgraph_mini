@@ -318,6 +318,18 @@ def list_accounts() -> list[dict]:
     return [_account_dict(a) for a in accounts]
 
 
+@app.get("/api/accounts/recipients")
+def list_recipients() -> list[dict]:
+    """이체 받는사람 후보 — 요청자 본인 소유가 아닌 계좌들. 타인 계좌라 잔액(balance)은
+    응답에 안 넣는다(계좌id/닉네임만 노출)."""
+    orchestration = _state["orchestration"]
+    with request_transaction(_state["pool"]):
+        recipients = orchestration.query(
+            "account.list_recipients", {"owner_id": DEMO_OWNER_ID}, requester_id=DEMO_OWNER_ID
+        )
+    return [{"account_id": a.account_id, "nickname": a.nickname} for a in recipients]
+
+
 @app.get("/api/accounts/{account_id}/transactions")
 def list_transactions(account_id: str) -> list[dict]:
     orchestration = _state["orchestration"]

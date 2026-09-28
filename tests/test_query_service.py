@@ -52,6 +52,18 @@ def test_get_total_balance_is_zero_when_no_accounts():
     assert service.get_total_balance("nobody") == 0
 
 
+def test_list_recipients_excludes_only_the_given_owner():
+    service, account_repo, _, _ = _service()
+    account_repo.save(Account(account_id="a1", owner_id="u1", nickname="life", balance=1000))
+    account_repo.save(Account(account_id="a2", owner_id="u1", nickname="save", balance=500))
+    account_repo.save(Account(account_id="a3", owner_id="u2", nickname="travel", balance=200))
+    account_repo.save(Account(account_id="a4", owner_id="u3", nickname="biz", balance=300))
+
+    recipients = service.list_recipients("u1")
+
+    assert {a.account_id for a in recipients} == {"a3", "a4"}
+
+
 def test_get_transactions_sorted_by_recent_first():
     service, _, tx_repo, _ = _service()
     older = Transaction(account_id="a1", transaction_type=TransactionType.TRANSFER_OUT, amount=100)

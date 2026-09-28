@@ -110,6 +110,14 @@ def build_actions(repos: Repos) -> dict[str, ActionSpec]:
             verify_owner=lambda p, rid: own.verify_is_self(p["owner_id"], rid),
             execute=lambda p, services: services.account_query.get_total_balance(p["owner_id"]),
         ),
+        "account.list_recipients": ActionSpec(
+            required_params=["owner_id"],
+            # owner_id는 "본인 계좌를 제외해달라"는 기준일 뿐 — 결과 자체는 타인 계좌라서
+            # verify_is_self는 여기서도 "요청자가 owner_id 본인이 맞는지"만 확인함(다른
+            # 사람 행세로 자기 것만 쏙 빼고 조회하는 걸 막는 용도, 목록 내용 자체를 막는 게 아님).
+            verify_owner=lambda p, rid: own.verify_is_self(p["owner_id"], rid),
+            execute=lambda p, services: services.account_query.list_recipients(p["owner_id"]),
+        ),
         "account.get_transactions": ActionSpec(
             required_params=["account_id"],
             verify_owner=lambda p, rid: own.verify_account_owner(repos.account, p["account_id"], rid),

@@ -576,7 +576,9 @@
 
   function accountNickname(accountId) {
     const acc = accounts.find((a) => a.account_id === accountId);
-    return acc ? acc.nickname : accountId;
+    if (acc) return acc.nickname;
+    const recipient = externalRecipients.find((r) => r.account_id === accountId);
+    return recipient ? recipient.nickname : accountId;
   }
 
   function renderAccountCard(acc, clickable) {
@@ -802,41 +804,63 @@
   }
 
   /* ---------------- 이체 플로우 ---------------- */
-  // 받는사람은 항상 "내 다른 계좌"로 제한 — 이 프로젝트엔 계좌 개설/외부 수취인 등록 기능이
-  // 없어서 실제 존재하는 계좌끼리만 이체가 가능함(백엔드 account.transfer가 요구하는 그대로).
+  // 받는사람 = 내 다른 계좌 + 타인 계좌(둘 다 실제 존재하는 계좌 — 백엔드 account.transfer는
+  // to_id에 소유권 검증이 아예 없어서 원래부터 타인 계좌로 이체 가능했음. 타인 계좌는
+  // /api/accounts/recipients가 닉네임만 내려줌(잔액은 프라이버시상 노출 안 함)).
   let transfer = { fromId: null, to: null, amount: 0 };
+  let externalRecipients = [];
 
-  function openTransfer() {
+  async function loadRecipients() {
+    try {
+      externalRecipients = await apiGet("/api/accounts/recipients");
+    } catch (err) {
+      externalRecipients = [];
+      showToast(err.message);
+    }
+  }
+
+  async function openTransfer() {
     transfer = { fromId: accounts[0] ? accounts[0].account_id : null, to: null, amount: 0 };
+    await loadRecipients();
     renderRecipients();
     showView("transfer-recipient");
   }
-  function openTransferFrom() {
+  async function openTransferFrom() {
     transfer = { fromId: currentAccountId, to: null, amount: 0 };
+    await loadRecipients();
     renderRecipients();
     showView("transfer-recipient");
+  }
+  function selectRecipient(name, accountId) {
+    transfer.to = { name, accountId };
+    transfer.amount = 0;
+    const from = accounts.find((x) => x.account_id === transfer.fromId);
+    document.getElementById("amount-to").textContent = name + "님께";
+    document.getElementById("amount-avail").textContent = "출금가능금액 " + won(from.balance);
+    renderAmount();
+    document.getElementById("amount-confirm").disabled = true;
+    showView("transfer-amount");
   }
   function renderRecipients() {
     const wrap = document.getElementById("recipient-list");
     wrap.innerHTML = "";
-    accounts
-      .filter((a) => a.account_id !== transfer.fromId)
-      .forEach((a) => {
-        const div = document.createElement("div");
-        div.className = "recipient-item";
-        div.innerHTML = `<div><div class="name">${a.nickname} 계좌 (내 계좌)</div><div class="acc">브이뱅크 ${a.account_id}</div></div><span>&#8250;</span>`;
-        div.onclick = () => {
-          transfer.to = { name: a.nickname, accountId: a.account_id };
-          transfer.amount = 0;
-          const from = accounts.find((x) => x.account_id === transfer.fromId);
-          document.getElementById("amount-to").textContent = a.nickname + " 계좌로";
-          document.getElementById("amount-avail").textContent = "출금가능금액 " + won(from.balance);
-          renderAmount();
-          document.getElementById("amount-confirm").disabled = true;
-          showView("transfer-amount");
-        };
-        wrap.appendChild(div);
-      });
+
+    const myOthers = accounts.filter((a) => a.account_id !== transfer.fromId);
+    myOthers.forEach((a) => {
+      const div = document.createElement("div");
+      div.className = "recipient-item";
+      div.innerHTML = `<div><div class="name">${a.nickname} 계좌 (내 계좌)</div><div class="acc">브이뱅크 ${a.account_id}</div></div><span>&#8250;</span>`;
+      div.onclick = () => selectRecipient(a.nickname + " 계좌", a.account_id);
+      wrap.appendChild(div);
+    });
+
+    externalRecipients.forEach((r) => {
+      const div = document.createElement("div");
+      div.className = "recipient-item";
+      div.innerHTML = `<div><div class="name">${r.nickname}</div><div class="acc">브이뱅크 ${r.account_id}</div></div><span>&#8250;</span>`;
+      div.onclick = () => selectRecipient(r.nickname, r.account_id);
+      wrap.appendChild(div);
+    });
   }
   function renderAmount() {
     document.getElementById("amount-num").textContent = won(transfer.amount);
@@ -974,7 +998,7 @@
   /* ---------------- 초기화 ---------------- */
   (async () => {
     try {
-      await Promise.all([loadAccounts(), loadBills()]);
+      await Promise.all([loadAccounts(), loadBills(), loadRecipients()]);
       renderDashboard();
       renderAccountsList();
       renderBills();

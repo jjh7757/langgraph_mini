@@ -32,6 +32,7 @@ class AccountQueryService(Protocol):
     def get_transactions(
         self, account_id: str, filter: TransactionFilter | None = None
     ) -> list[TransactionView]: ...
+    def list_recipients(self, exclude_owner_id: str) -> list[Account]: ...
 
 
 class DefaultAccountQueryService:
@@ -54,6 +55,16 @@ class DefaultAccountQueryService:
     def get_total_balance(self, owner_id: str) -> int:
         """owner_id의 모든 계좌 balance 합산. 계좌가 하나도 없으면 0."""
         return sum(account.balance for account in self.get_accounts(owner_id))
+
+    def list_recipients(self, exclude_owner_id: str) -> list[Account]:
+        """이체 받는사람 후보 — exclude_owner_id(요청자 본인) 소유가 아닌 계좌 전부.
+        타인 계좌라 balance까지 그대로 노출하면 안 됨(어디까지 보여줄지는 API 응답
+        직렬화 계층의 책임 — 여기서는 "본인 것만 뺀 계좌 목록"이라는 조회 자체만 담당)."""
+        return [
+            account
+            for account in self._account_repo.find_all()
+            if account.owner_id != exclude_owner_id
+        ]
 
     def get_transactions(
         self, account_id: str, filter: TransactionFilter | None = None

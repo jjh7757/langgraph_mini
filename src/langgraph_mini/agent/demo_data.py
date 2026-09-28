@@ -16,6 +16,16 @@ from ..card.repository import CardRepository
 
 DEMO_OWNER_ID = "demo-user"
 
+# 타인 계좌로도 이체할 수 있어야 해서 만든 "받는사람" 데모 계좌들 — 각자 별도 owner_id를
+# 가진 남의 계좌라서(로그인 기능이 없어 실제로 그 사람이 되어볼 순 없음) 주 데모 사용자
+# (DEMO_OWNER_ID)와는 독립적으로 존재 여부를 확인·생성한다. 그래서 이미 DEMO_OWNER_ID
+# 데이터가 있는 기존 서버에 배포해도(주 데모 데이터 생성은 건너뛰지만) 이 목록은 그때
+# 처음으로 새로 채워짐.
+_RECIPIENT_ACCOUNTS = [
+    ("demo-user-2", "demo-acc-3", "김도윤", 300000),
+    ("demo-user-3", "demo-acc-4", "정수경", 1200000),
+]
+
 
 def ensure_demo_data(
     account_repo: AccountRepository,
@@ -23,32 +33,46 @@ def ensure_demo_data(
     bill_repo: BillRepository,
     owner_id: str = DEMO_OWNER_ID,
 ) -> bool:
-    """이미 owner_id의 계좌가 있으면 아무것도 안 하고 False를 반환.
-    처음이면 데모 데이터를 만들고 True(호출한 쪽이 "처음 실행" 안내를 띄울지 판단하는 데 씀)."""
-    if account_repo.find_by_owner_id(owner_id):
-        return False
+    """owner_id(주 데모 사용자) 데이터와 받는사람 데모 계좌들을 각각 독립적으로 확인해서
+    없는 것만 만든다. 반환값은 "주 데모 사용자가 이번에 처음 생성됐는지"만 나타냄(호출한
+    쪽이 "처음 실행" 안내를 띄울지 판단하는 데 씀) — 받는사람 계좌가 나중에 추가로
+    생성돼도 이 반환값에는 안 잡힘(그 자체는 배너를 띄울 만한 "처음 실행"이 아니라서)."""
+    created_primary = False
+    if not account_repo.find_by_owner_id(owner_id):
+        created_primary = True
+        account_repo.save(
+            Account(account_id="demo-acc-1", owner_id=owner_id, nickname="생활비", balance=500000)
+        )
+        account_repo.save(
+            Account(account_id="demo-acc-2", owner_id=owner_id, nickname="저축", balance=2000000)
+        )
+        card_repo.save(
+            Card(
+                card_id="demo-card-1",
+                account_id="demo-acc-1",
+                name="생활비 체크카드",
+                kind=CardKind.CHECK,
+            )
+        )
+        bill_repo.save(
+            Bill(
+                bill_id="demo-bill-1",
+                owner_id=owner_id,
+                name="전기요금",
+                amount=45000,
+                due_date=date.today() + timedelta(days=10),
+            )
+        )
 
-    account_repo.save(
-        Account(account_id="demo-acc-1", owner_id=owner_id, nickname="생활비", balance=500000)
-    )
-    account_repo.save(
-        Account(account_id="demo-acc-2", owner_id=owner_id, nickname="저축", balance=2000000)
-    )
-    card_repo.save(
-        Card(
-            card_id="demo-card-1",
-            account_id="demo-acc-1",
-            name="생활비 체크카드",
-            kind=CardKind.CHECK,
-        )
-    )
-    bill_repo.save(
-        Bill(
-            bill_id="demo-bill-1",
-            owner_id=owner_id,
-            name="전기요금",
-            amount=45000,
-            due_date=date.today() + timedelta(days=10),
-        )
-    )
-    return True
+    for recipient_owner_id, account_id, nickname, balance in _RECIPIENT_ACCOUNTS:
+        if not account_repo.find_by_owner_id(recipient_owner_id):
+            account_repo.save(
+                Account(
+                    account_id=account_id,
+                    owner_id=recipient_owner_id,
+                    nickname=nickname,
+                    balance=balance,
+                )
+            )
+
+    return created_primary
