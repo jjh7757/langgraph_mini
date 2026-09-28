@@ -1,7 +1,4 @@
-"""카드 서비스의 도메인 모델.
-
-TODO(직접 구현): 표시된 메서드의 실제 로직. docstring은 지켜야 할 불변식/계약을 적어둔 것.
-"""
+"""카드 서비스의 도메인 모델."""
 
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -72,18 +69,24 @@ class Card:
     def block_as_lost(self) -> None:
         """USABLE 또는 LOCKED 상태에서만 가능 → LOST로 변경.
         이미 LOST면 CardAlreadyLostError."""
-        ...
+        if self.status is CardStatus.LOST:
+            raise CardAlreadyLostError(self.card_id)
+        self.status = CardStatus.LOST
 
     def lock_temporarily(self) -> None:
         """USABLE 상태에서만 가능 → LOCKED로 변경.
         LOCKED 또는 LOST면 CardNotUsableError."""
-        ...
+        if self.status is not CardStatus.USABLE:
+            raise CardNotUsableError(self.card_id)
+        self.status = CardStatus.LOCKED
 
     def unlock(self) -> None:
         """LOCKED 상태에서만 가능 → USABLE로 변경.
         USABLE 또는 LOST면 CardNotLockedError
         (LOST는 잠금 해제로 되돌릴 수 없음 — 재발급 절차를 거쳐야 함)."""
-        ...
+        if self.status is not CardStatus.LOCKED:
+            raise CardNotLockedError(self.card_id)
+        self.status = CardStatus.USABLE
 
 
 class DeliveryAddress(Enum):
@@ -116,9 +119,13 @@ class ReissueRequest:
     def change_delivery_address(self, new_address: DeliveryAddress) -> None:
         """RECEIVED 상태에서만 변경 가능.
         아니면 ReissueRequestNotModifiableError."""
-        ...
+        if self.status is not ReissueStatus.RECEIVED:
+            raise ReissueRequestNotModifiableError(self.request_id)
+        self.delivery_address = new_address
 
     def cancel(self) -> None:
         """RECEIVED 상태에서만 취소 가능(status를 CANCELLED로 변경).
         아니면 ReissueRequestNotModifiableError."""
-        ...
+        if self.status is not ReissueStatus.RECEIVED:
+            raise ReissueRequestNotModifiableError(self.request_id)
+        self.status = ReissueStatus.CANCELLED

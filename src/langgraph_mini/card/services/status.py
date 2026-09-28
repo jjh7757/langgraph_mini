@@ -27,10 +27,19 @@ class DefaultCardStatusService:
 
     def block_as_lost(self, card_id: str) -> Card:
         """find_by_id → card.block_as_lost() → save → 반환. 셋 다 같은 흐름."""
-        ...
+        card = self._card_repo.find_by_id(card_id)
+        card.block_as_lost()
+        self._card_repo.save(card)
+        return card
 
     def lock_temporarily(self, card_id: str) -> Card:
-        ...
+        card = self._card_repo.find_by_id(card_id)
+        card.lock_temporarily()
+        self._card_repo.save(card)
+        return card
 
     def unlock(self, card_id: str) -> Card:
-        ...
+        card = self._card_repo.find_by_id(card_id)
+        card.unlock()
+        self._card_repo.save(card)
+        return card

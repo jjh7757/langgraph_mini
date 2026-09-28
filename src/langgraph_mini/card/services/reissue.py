@@ -10,7 +10,14 @@ request_id는 호출하는 쪽(Orchestration)이 생성해서 넘김 — account
 
 from typing import Protocol
 
-from ..domain import DeliveryAddress, ReissueRequest
+from ..domain import (
+    CardNotLostError,
+    CardStatus,
+    DeliveryAddress,
+    ReissueRequest,
+    ReissueRequestAlreadyExistsError,
+    ReissueStatus,
+)
 from ..repository import CardRepository
 from ..reissue_request_repository import ReissueRequestRepository
 
@@ -48,23 +55,45 @@ class DefaultCardReissueService:
            호출한 쪽이 "이미 신청이 있다"고 안내할 수 있게
         3) 새 ReissueRequest(request_id, card_id, delivery_address) 생성 후 save, 반환
         카드 자체의 status는 여기서 바꾸지 않음(LOST 그대로 유지)."""
-        ...
+        card = self._card_repo.find_by_id(card_id)
+        if card.status is not CardStatus.LOST:
+            raise CardNotLostError(card_id)
+
+        existing = [
+            request
+            for request in self._reissue_repo.find_by_card_id(card_id)
+            if request.status is not ReissueStatus.CANCELLED
+        ]
+        if existing:
+            raise ReissueRequestAlreadyExistsError(existing[0])
+
+        request = ReissueRequest(
+            request_id=request_id, card_id=card_id, delivery_address=delivery_address
+        )
+        self._reissue_repo.save(request)
+        return request
 
     def get_reissue_request(self, request_id: str) -> ReissueRequest:
         """reissue_repo.find_by_id 그대로 위임. 없으면 ReissueRequestNotFoundError."""
-        ...
+        return self._reissue_repo.find_by_id(request_id)
 
     def get_reissue_requests_by_card(self, card_id: str) -> list[ReissueRequest]:
         """reissue_repo.find_by_card_id 그대로 위임. 없으면 빈 리스트."""
-        ...
+        return self._reissue_repo.find_by_card_id(card_id)
 
     def change_delivery_address(
         self, request_id: str, new_address: DeliveryAddress
     ) -> ReissueRequest:
         """find_by_id → request.change_delivery_address(new_address) → save → 반환.
         RECEIVED 상태가 아니면 ReissueRequestNotModifiableError(도메인 메서드가 발생시킴)."""
-        ...
+        request = self._reissue_repo.find_by_id(request_id)
+        request.change_delivery_address(new_address)
+        self._reissue_repo.save(request)
+        return request
 
     def cancel_reissue_request(self, request_id: str) -> ReissueRequest:
         """find_by_id → request.cancel() → save → 반환."""
-        ...
+        request = self._reissue_repo.find_by_id(request_id)
+        request.cancel()
+        self._reissue_repo.save(request)
+        return request

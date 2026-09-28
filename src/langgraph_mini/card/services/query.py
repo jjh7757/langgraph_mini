@@ -23,10 +23,14 @@ class DefaultCardQueryService:
         self._account_repo = account_repo
 
     def get_card(self, card_id: str) -> Card:
-        ...
+        return self._card_repo.find_by_id(card_id)
 
     def get_cards(self, owner_id: str) -> list[Card]:
         """1) account_repo.find_by_owner_id(owner_id)로 그 소유자의 계좌 목록 조회
         2) 각 계좌마다 card_repo.find_by_account_id(account_id) 호출해서 리스트 합치기
         계좌가 하나도 없으면(따라서 카드도 없으면) 빈 리스트."""
-        ...
+        accounts = self._account_repo.find_by_owner_id(owner_id)
+        cards: list[Card] = []
+        for account in accounts:
+            cards.extend(self._card_repo.find_by_account_id(account.account_id))
+        return cards
