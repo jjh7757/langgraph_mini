@@ -64,6 +64,7 @@ class TransactionType(Enum):
     TRANSFER_OUT = "이체출금"
     TRANSFER_IN = "이체입금"
     CARD_PAYMENT = "카드결제"
+    BILL_PAYMENT = "청구서납부"
 
 
 @dataclass
@@ -77,8 +78,9 @@ class Transaction:
     account_id: str
     transaction_type: TransactionType
     amount: int
-    counterpart_id: str | None = None  # 이체 상대 계좌 id (카드결제면 None)
+    counterpart_id: str | None = None  # 이체 상대 계좌 id (카드결제/청구서납부면 None)
     card_id: str | None = None  # 카드결제일 때 사용한 카드 (아니면 None)
+    bill_id: str | None = None  # 청구서납부일 때 납부한 청구서 (아니면 None)
     created_at: datetime = field(default_factory=datetime.now)
 
 
