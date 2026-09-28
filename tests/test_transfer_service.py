@@ -165,3 +165,16 @@ def test_transfer_split_raises_when_total_exceeds_balance():
     assert repo.find_by_id("a1").balance == 100
     assert repo.find_by_id("a2").balance == 0
     assert repo.find_by_id("a3").balance == 0
+
+
+def test_transfer_split_raises_when_target_includes_self():
+    a1 = Account(account_id="a1", owner_id="u1", nickname="life", balance=1000)
+    a2 = Account(account_id="a2", owner_id="u1", nickname="save", balance=0)
+    service, repo, _ = _service_with(a1, a2)
+
+    with pytest.raises(AccountSelfTransferError):
+        service.transfer_split("a1", [("a2", 100), ("a1", 50)])
+
+    # 검증 실패 시 어떤 계좌도 안 바뀌어야 함
+    assert repo.find_by_id("a1").balance == 1000
+    assert repo.find_by_id("a2").balance == 0

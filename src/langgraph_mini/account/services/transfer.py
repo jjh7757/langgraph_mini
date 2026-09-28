@@ -124,17 +124,21 @@ class DefaultAccountTransferService:
         self, from_id: str, targets: list[tuple[str, int]]
     ) -> list[Transaction]:
         """순서가 원자성을 좌우함 — 계좌를 하나라도 건드리기 전에 검증부터 끝낼 것:
-        1) targets의 모든 금액이 0보다 큰지 검증 (하나라도 아니면 ValueError,
+        1) targets에 from_id와 같은 계좌가 섞여 있는지 검증 (있으면 AccountSelfTransferError)
+        2) targets의 모든 금액이 0보다 큰지 검증 (하나라도 아니면 ValueError,
            이 시점까지는 어떤 계좌도 안 건드린 상태)
-        2) 모든 대상 계좌를 find_by_id로 미리 조회
+        3) 모든 대상 계좌를 find_by_id로 미리 조회
            (존재 안 하는 id가 있으면 AccountNotFoundError, 역시 아직 안전)
-        3) 총액 = sum(targets의 금액) 계산 후 from_account.withdraw(총액) 1회 호출
+        4) 총액 = sum(targets의 금액) 계산 후 from_account.withdraw(총액) 1회 호출
            (잔액 부족하면 InsufficientBalanceError, 아직 대상 계좌들은 안 바뀐 상태)
-        4) 그제서야 각 대상 계좌에 deposit
-        5) from_account + 모든 대상 계좌 save
-        6) target마다 TRANSFER_OUT(from_id 기준)/TRANSFER_IN(대상 계좌 기준) 한 쌍씩
+        5) 그제서야 각 대상 계좌에 deposit
+        6) from_account + 모든 대상 계좌 save
+        7) target마다 TRANSFER_OUT(from_id 기준)/TRANSFER_IN(대상 계좌 기준) 한 쌍씩
            만들어 transaction_repo에 save, 전부 리스트로 반환
         """
+        if any(target_id == from_id for target_id, _ in targets):
+            raise AccountSelfTransferError
+
         for _, amount in targets:
             if amount <= 0:
                 raise ValueError("transfer_split amount must be positive")
