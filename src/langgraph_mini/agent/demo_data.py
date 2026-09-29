@@ -22,8 +22,8 @@ DEMO_OWNER_ID = "demo-user"
 # 데이터가 있는 기존 서버에 배포해도(주 데모 데이터 생성은 건너뛰지만) 이 목록은 그때
 # 처음으로 새로 채워짐.
 _RECIPIENT_ACCOUNTS = [
-    ("demo-user-2", "demo-acc-3", "김도윤", 300000),
-    ("demo-user-3", "demo-acc-4", "정수경", 1200000),
+    ("demo-user-2", "demo-acc-3", "김철수", 300000),
+    ("demo-user-3", "demo-acc-4", "이영희", 1200000),
 ]
 
 
@@ -65,7 +65,8 @@ def ensure_demo_data(
         )
 
     for recipient_owner_id, account_id, nickname, balance in _RECIPIENT_ACCOUNTS:
-        if not account_repo.find_by_owner_id(recipient_owner_id):
+        existing = account_repo.find_by_owner_id(recipient_owner_id)
+        if not existing:
             account_repo.save(
                 Account(
                     account_id=account_id,
@@ -74,5 +75,13 @@ def ensure_demo_data(
                     balance=balance,
                 )
             )
+        else:
+            # 닉네임만 코드와 동기화(잔액은 실제 이체로 바뀔 수 있는 값이라 건드리지 않음) —
+            # 이 목록의 이름을 나중에 바꾸면(예: 실존 인물 이름이라 바꾼 경우) 이미 데이터가
+            # 있는 서버에도 다음 배포 때 자동으로 반영되게 하려는 목적.
+            account = existing[0]
+            if account.nickname != nickname:
+                account.rename(nickname)
+                account_repo.save(account)
 
     return created_primary

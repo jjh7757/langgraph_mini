@@ -1,7 +1,7 @@
 """api/app.py의 REST 엔드포인트(계좌/카드/청구서 조회 + 이체/카드관리/청구서납부 실행)
 통합 테스트. api_client 픽스처(conftest.py)가 실제 TestClient로 앱을 띄우므로, 매 테스트가
 깨끗한 데모 데이터(demo-acc-1: 생활비 500000 / demo-acc-2: 저축 2000000 / demo-card-1 /
-demo-bill-1 / 받는사람 데모 계좌 demo-acc-3: 김도윤 / demo-acc-4: 정수경)로 시작한다.
+demo-bill-1 / 받는사람 데모 계좌 demo-acc-3: 김철수 / demo-acc-4: 이영희)로 시작한다.
 """
 
 
@@ -19,7 +19,7 @@ def test_list_recipients_excludes_own_accounts_and_hides_balance(api_client):
     assert res.status_code == 200
     recipients = {r["account_id"]: r for r in res.json()}
     assert set(recipients) == {"demo-acc-3", "demo-acc-4"}
-    assert recipients["demo-acc-3"]["nickname"] == "김도윤"
+    assert recipients["demo-acc-3"]["nickname"] == "김철수"
     assert "balance" not in recipients["demo-acc-3"]
 
 
@@ -81,7 +81,7 @@ class TestTransfer:
 
     def test_transfer_to_another_owners_account_succeeds(self, api_client):
         # to_id에는 소유권 검증이 없어서(actions.py) 타인 계좌로도 이체 가능 — 이번에 추가한
-        # 받는사람 데모 계좌(demo-acc-3: 김도윤, owner_id가 다름)로 실제로 확인. 단, 그 계좌의
+        # 받는사람 데모 계좌(demo-acc-3: 김철수, owner_id가 다름)로 실제로 확인. 단, 그 계좌의
         # 거래내역까지 조회하는 건 여전히 막혀야 함(account.get_transactions는 그 계좌 소유자만
         # 볼 수 있음 — 돈은 보낼 수 있어도 남의 거래내역은 못 봐야 정상이라 403을 함께 검증).
         res = api_client.post(
