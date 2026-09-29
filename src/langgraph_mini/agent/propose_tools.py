@@ -1,6 +1,7 @@
 """LLM에게 노출하는 Tool 22개 (실행형 12 + 조회형 10) — orchestration/actions.py의
-ACTIONS와 1:1 대응. 실행형은 propose_and_confirm(승인 루프)을 거치고, 조회형은
-orchestration.query()로 바로 실행한다.
+ACTIONS(23개) 중 챗봇에 노출할 22개와 대응한다(`account.list_recipients`는 REST API
+전용 조회라 tool로는 안 둠 — 웹 UI의 "받는사람 목록"에서만 씀). 실행형은
+propose_and_confirm(승인 루프)을 거치고, 조회형은 orchestration.query()로 바로 실행한다.
 
 `build_tools(orchestration, confirmation_llm)`이 팩토리 — 모듈 임포트 시점에 실제
 OrchestrationService를 만들지 않고, 호출하는 쪽(graph.py 또는 테스트)이 원하는

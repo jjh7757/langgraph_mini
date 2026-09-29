@@ -5,7 +5,9 @@
     confirmation.py       승인 루프(propose_and_confirm/resume_and_confirm) +
                           자연어 답변 분류(classify_confirmation)
     propose_tools.py      build_tools() — @tool 함수 22개 (실행형 12 + 조회형 10,
-                          orchestration/actions.py의 ACTIONS와 1:1 대응)
+                          orchestration/actions.py의 ACTIONS 23개 중 챗봇에 노출할
+                          22개와 대응 — account.list_recipients는 REST 전용이라 tool로
+                          안 둠)
     graph.py               build_graph() — StateGraph 조립(복구 체크 → 에이전트 → ToolNode)
     wiring.py               build_orchestration() — 실제 JSON 파일로 OrchestrationService 조립
 
