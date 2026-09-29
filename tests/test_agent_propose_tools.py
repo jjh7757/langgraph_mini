@@ -54,9 +54,12 @@ def _tools_by_name(orchestration):
     return {t.name: t for t in tools}
 
 
-def test_build_tools_returns_22_tools_matching_actions():
+def test_build_tools_returns_22_tools_excluding_rest_only_action():
+    # actions.py의 ACTIONS는 23개(account.list_recipients 포함)지만, list_recipients는
+    # REST API 전용 조회라 챗봇 tool로는 안 만들어서 22개만 나와야 함.
     tools = _tools_by_name(_build())
     assert len(tools) == 22
+    assert "list_recipients" not in tools
 
 
 def test_execution_tools_hide_tool_call_id_and_config_from_llm_schema():
