@@ -432,7 +432,8 @@
     }
     #page-head h1 { margin: 0; font-size: 1.5rem; font-weight: 800; }
     #page-head .crumbs { font-size: 0.78rem; color: var(--text-sub); }
-    .view { padding: 0 32px 40px; }
+    .view { padding: 0 32px 100px; }   /* 아래 여백: 우측 하단 챗 버튼이 마지막 행을 가리지 않게 */
+    .tx-row .desc, .bill-row .name { word-break: keep-all; }
     .subheader, .topbar { display: none; }     /* 제목/뒤로가기는 page-head, GNB로 대체 */
     .transfer-step { max-width: 480px; margin: 0 auto; width: 100%; }  /* 4단계에서 한 페이지 폼으로 교체 예정 */
 
@@ -655,6 +656,18 @@
 
     #toast { left: 50%; right: auto; width: 360px; transform: translate(-50%, -8px); }
     #toast.show { transform: translate(-50%, 0); }
+  }
+
+  /* 좁은 PC(1024~1279px): 사이드 메뉴·여백·표 열 너비를 줄여 내용 열 공간 확보 */
+  @media (min-width: 1024px) and (max-width: 1279px) {
+    #phone { grid-template-columns: 200px minmax(0, 1fr); }
+    #lnb { padding: 24px 14px; }
+    .view { padding-left: 24px; padding-right: 24px; }
+    #page-head { padding-left: 24px; padding-right: 24px; }
+    .tx-head, .tx-row { grid-template-columns: 104px 92px minmax(0, 1fr) 118px 118px; column-gap: 10px; padding-left: 10px; padding-right: 10px; }
+    .bill-head, .bill-row { grid-template-columns: 24px minmax(0, 1.4fr) 120px 120px 96px; column-gap: 10px; }
+    .tf-layout { grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; }
+    .bs-pay select { min-width: 200px; }
   }
 </style>
 </head>
