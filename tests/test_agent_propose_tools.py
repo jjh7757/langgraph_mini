@@ -206,3 +206,109 @@ def test_rejected_result_after_revision_has_no_revision_note():
 
     assert content.startswith("실패(Rejected): ")
     assert "수정" not in content
+
+
+# ── 조회 tool의 예상된 실패는 예외가 아니라 "실패(...)" 문구로 돌려준다 ────────────────────
+# (예외를 그대로 올리면 그래프 실행이 중단돼 에이전트가 사용자에게 이유를 설명할 수 없음 —
+#  평가 other_owner_balance에서 웹은 403 JSON, CLI는 대화 루프 종료로 나타났음)
+
+
+def _tool_call(name, args):
+    """tool_call_id를 주입받는 tool은 전체 ToolCall 형식으로 불러야 함(LLM이 부르는 것과 같은 형태)."""
+    return {"type": "tool_call", "id": "call_x", "name": name, "args": args}
+
+
+def _config(requester_id="u1"):
+    return {"configurable": {"requester_id": requester_id, "thread_id": "t1"}}
+
+
+def test_get_account_of_someone_else_returns_failure_text_instead_of_raising():
+    tools = _tools_by_name(_build())
+
+    output = tools["get_account"].invoke({"account_id": "a1"}, config=_config("u2"))
+
+    assert output.startswith("실패(NotOwnerError)")
+    assert "1000" not in output  # 남의 잔액이 문구에 새지 않음
+
+
+def test_get_account_with_unknown_id_returns_failure_text():
+    tools = _tools_by_name(_build())
+
+    output = tools["get_account"].invoke({"account_id": "nope"}, config=_config())
+
+    assert output.startswith("실패(AccountNotFoundError)")
+
+
+def test_get_card_and_transactions_of_someone_else_return_failure_text():
+    tools = _tools_by_name(_build())
+
+    card = tools["get_card"].invoke({"card_id": "c1"}, config=_config("u2"))
+    transactions = tools["get_transactions"].invoke({"account_id": "a1"}, config=_config("u2"))
+
+    assert card.startswith("실패(NotOwnerError)")
+    assert transactions.startswith("실패(NotOwnerError)")
+
+
+def test_get_transactions_with_malformed_date_returns_failure_text():
+    tools = _tools_by_name(_build())
+
+    output = tools["get_transactions"].invoke(
+        {"account_id": "a1", "start_date": "2026-9-1"}, config=_config()
+    )
+
+    assert output.startswith("실패(ValueError)")
+    assert "YYYY-MM-DD" in output
+
+
+def test_conditional_transfer_with_nothing_to_move_returns_failure_text_before_proposing():
+    tools = _tools_by_name(_build(with_savings_account=True))
+
+    # 남길 금액(5000)이 현재 잔액(1000)보다 커서 옮길 돈이 없음 — 승인 단계까지 가지 않고 바로 실패
+    output = tools["confirm_conditional_transfer"].invoke(
+        _tool_call("confirm_conditional_transfer", {"from_id": "a1", "to_id": "a2", "remaining_balance": 5000}),
+        config=_config(),
+    ).content
+
+    assert output.startswith("실패(ConditionalTransferNotNeededError)")
+
+
+def test_conditional_transfer_from_someone_elses_account_returns_failure_text():
+    tools = _tools_by_name(_build(with_savings_account=True))
+
+    output = tools["confirm_conditional_transfer"].invoke(
+        _tool_call("confirm_conditional_transfer", {"from_id": "a1", "to_id": "a2", "remaining_balance": 0}),
+        config=_config("u2"),
+    ).content
+
+    assert output.startswith("실패(NotOwnerError)")
+
+
+def test_query_tool_still_returns_normal_result_for_own_account():
+    tools = _tools_by_name(_build())
+
+    output = tools["get_account"].invoke({"account_id": "a1"}, config=_config())
+
+    assert not output.startswith("실패")
+    assert json.loads(output)["balance"] == 1000
+
+
+def test_agent_turn_continues_and_answers_after_query_failure():
+    """이전에는 NotOwnerError가 그래프 밖으로 터져서 두 번째 LLM 호출(설명)까지 못 갔다."""
+    orchestration = _build()
+    call = AIMessage(
+        content="", tool_calls=[{"name": "get_account", "args": {"account_id": "a1"}, "id": "call_1"}]
+    )
+    app = build_graph(
+        _ScriptedLLM([call, AIMessage(content="다른 사람의 계좌라 조회할 수 없어요.")]),
+        orchestration,
+        _ScriptedConfirmationLLM([]),
+    )
+
+    result = app.invoke(
+        {"messages": [HumanMessage(content="a1 잔액 알려줘")]},
+        config={"configurable": {"thread_id": "t9", "requester_id": "u2"}},
+    )
+
+    tool_message = [m for m in result["messages"] if isinstance(m, ToolMessage)][-1]
+    assert tool_message.content.startswith("실패(NotOwnerError)")
+    assert result["messages"][-1].content == "다른 사람의 계좌라 조회할 수 없어요."

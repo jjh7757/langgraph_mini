@@ -19,9 +19,16 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import InjectedToolCallId, tool
 from pydantic import BaseModel
 
-from ..account.domain import TransactionFilter, TransactionType, TransferCondition
-from ..card.domain import DeliveryAddress
-from ..orchestration.domain import ActionResult
+from ..account.domain import (
+    AccountNotFoundError,
+    TransactionFilter,
+    TransactionType,
+    TransferCondition,
+)
+from ..account.services.transfer import ConditionalTransferNotNeededError
+from ..billing.domain import BillNotFoundError
+from ..card.domain import CardNotFoundError, DeliveryAddress, ReissueRequestNotFoundError
+from ..orchestration.domain import ActionResult, NotOwnerError
 from ..orchestration.service import OrchestrationService
 from .confirmation import propose_and_confirm
 from .context import get_context
@@ -53,6 +60,26 @@ def _to_plain(value):
 
 def _format_value(value) -> str:
     return json.dumps(_to_plain(value), ensure_ascii=False)
+
+
+# 조회 tool이 사용자 입력(남의 id, 없는 id 등)만으로 낼 수 있는 "예상된" 실패 — 예외를 그대로 올리면
+# 그래프 실행이 중단돼서(웹은 403/404 JSON, CLI는 대화 루프 종료) 에이전트가 사용자에게 이유를 설명할 수
+# 없다. 그래서 실행형 tool(_format_result)처럼 "실패(...)" 문구로 돌려줘 LLM이 안내하게 한다.
+# MissingParamsError/ActionNotRegisteredError 같은 프로그래밍 오류는 일부러 여기 넣지 않는다 —
+# 숨기면 버그가 가려지므로 그대로 터뜨린다.
+_QUERY_ERROR_MESSAGES: dict[type[Exception], str] = {
+    NotOwnerError: "본인 소유가 아니어서 조회할 수 없습니다.",
+    AccountNotFoundError: "계좌를 찾을 수 없습니다.",
+    CardNotFoundError: "카드를 찾을 수 없습니다.",
+    BillNotFoundError: "청구서를 찾을 수 없습니다.",
+    ReissueRequestNotFoundError: "재발급 신청 내역을 찾을 수 없습니다.",
+    ConditionalTransferNotNeededError: "조건에 맞는 이체 금액이 없습니다(남길 금액이 현재 잔액 이상).",
+}
+_QUERY_ERRORS = tuple(_QUERY_ERROR_MESSAGES)
+
+
+def _format_query_error(exc: Exception) -> str:
+    return f"실패({type(exc).__name__}): {_QUERY_ERROR_MESSAGES[type(exc)]}"
 
 
 # 승인 루프가 실행 없이 끝난 경우 — 실행된 params가 없으므로 수정 안내를 붙이지 않는다.
@@ -105,7 +132,10 @@ def build_tools(orchestration: OrchestrationService, confirmation_llm) -> list:
 
     def _query(action: str, params: dict, config: RunnableConfig) -> str:
         ctx = get_context(config)
-        value = orchestration.query(action, params, ctx.requester_id)
+        try:
+            value = orchestration.query(action, params, ctx.requester_id)
+        except _QUERY_ERRORS as exc:
+            return _format_query_error(exc)
         return _format_value(value)
 
     # ── 실행형 12개 ──────────────────────────────────────────────
@@ -153,11 +183,14 @@ def build_tools(orchestration: OrchestrationService, confirmation_llm) -> list:
         실행 전 사용자 승인이 필요합니다. 이체액은 이 tool이 실행 시점에 다시 계산합니다."""
         ctx = get_context(config)
         condition = TransferCondition(remaining_balance=remaining_balance)
-        quote = orchestration.query(
-            "account.calculate_conditional_transfer",
-            {"from_id": from_id, "to_id": to_id, "condition": condition},
-            ctx.requester_id,
-        )
+        try:
+            quote = orchestration.query(
+                "account.calculate_conditional_transfer",
+                {"from_id": from_id, "to_id": to_id, "condition": condition},
+                ctx.requester_id,
+            )
+        except _QUERY_ERRORS as exc:
+            return _format_query_error(exc)
         return _propose(
             "account.confirm_conditional_transfer", {"quote": quote}, tool_call_id, config
         )
@@ -318,9 +351,14 @@ def build_tools(orchestration: OrchestrationService, confirmation_llm) -> list:
         """계좌의 거래 내역을 조회합니다. 필터는 전부 선택 사항입니다(날짜는 YYYY-MM-DD)."""
         filter_ = None
         if any([start_date, end_date, min_amount, max_amount, transaction_type]):
+            try:
+                start = date.fromisoformat(start_date) if start_date else None
+                end = date.fromisoformat(end_date) if end_date else None
+            except ValueError:
+                return "실패(ValueError): 날짜는 YYYY-MM-DD 형식이어야 합니다(예: 2026-09-01)."
             filter_ = TransactionFilter(
-                start_date=date.fromisoformat(start_date) if start_date else None,
-                end_date=date.fromisoformat(end_date) if end_date else None,
+                start_date=start,
+                end_date=end,
                 min_amount=min_amount,
                 max_amount=max_amount,
                 transaction_type=TransactionType(transaction_type) if transaction_type else None,
