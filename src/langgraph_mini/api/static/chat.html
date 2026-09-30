@@ -360,6 +360,18 @@
   }
   .chat-input-bar button:disabled { opacity: 0.5; }
 
+  /* ---------- PC 이체 확인 모달 (모바일에서는 열리지 않음) ---------- */
+  .modal {
+    display: none; position: fixed; inset: 0; z-index: 50;
+    background: rgba(23, 32, 74, 0.45); align-items: center; justify-content: center;
+  }
+  .modal.open { display: flex; }
+  .modal-box { width: 420px; max-width: calc(100vw - 32px); background: var(--card); border-radius: 18px; padding: 28px 28px 24px; box-shadow: 0 24px 64px rgba(23, 32, 74, 0.3); }
+  .modal-box h3 { margin: 0; font-size: 1.05rem; text-align: center; }
+  .modal-amount { text-align: center; font-size: 2rem; font-weight: 800; margin: 18px 0 10px; }
+  .modal-btns { display: flex; gap: 10px; margin-top: 22px; }
+  .modal-btns .primary-btn, .modal-btns .ghost-btn { width: auto; flex: 1; margin: 0; }
+
   /* ---------- PC 레이아웃 (>=1024px): 상단 GNB + 좌측 LNB + 콘텐츠 + 플로팅 챗봇 ---------- */
   /* 모바일에서는 PC 전용 요소를 숨기고, <main>은 레이아웃에 관여하지 않게(display: contents) 한다. */
   #gnb, #lnb, #page-head, .d-only, .acc-actions { display: none; }
@@ -526,6 +538,47 @@
     .tx-row .after { order: 5; text-align: right; margin: 0; font-size: 0.88rem; }
     .tx-empty { padding: 60px 0; text-align: center; color: var(--text-sub); font-size: 0.9rem; border-bottom: 1px solid var(--border); }
 
+    /* ----- 이체: 한 페이지 폼 (좌: 입력, 우: 실시간 요약) ----- */
+    .tf-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 28px; align-items: start; }
+    .tf-sec { padding: 22px 24px; border: 1px solid var(--border); border-radius: 14px; margin-bottom: 16px; }
+    .tf-sec h3, .tf-summary h3 { margin: 0 0 14px; font-size: 1rem; font-weight: 800; }
+    .tf-sec select, .tf-sec input {
+      width: 100%; padding: 13px 14px; border: 1px solid var(--border); border-radius: 10px;
+      font-size: 1rem; color: var(--text); background: var(--card); outline: none;
+    }
+    .tf-sec select { font-weight: 700; cursor: pointer; }
+    .tf-sec input:focus, .tf-sec select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .tf-hint { font-size: 0.82rem; color: var(--text-sub); margin-top: 8px; min-height: 1.2em; }
+    .tf-hint.ok { color: var(--mint); font-weight: 700; }
+    .tf-hint.err { color: var(--danger); font-weight: 600; }
+    .tf-sub { font-size: 0.8rem; color: var(--text-sub); margin: 14px 0 8px; }
+    .tf-recipients { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .tf-recipients .recipient-item { padding: 11px 14px; }
+    .tf-recipients .recipient-item:hover { border-color: var(--accent); }
+    .tf-recipients .recipient-item.selected { border-color: var(--accent); background: var(--accent-soft); }
+    .tf-amount-row { display: flex; align-items: center; gap: 10px; }
+    .tf-amount-row input { font-size: 1.5rem; font-weight: 800; text-align: right; }
+    .tf-amount-row span { font-size: 1.2rem; font-weight: 700; }
+    .tf-quick { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .tf-quick button {
+      padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border); background: var(--card);
+      font-size: 0.85rem; font-weight: 600; cursor: pointer;
+    }
+    .tf-quick button:hover { border-color: var(--accent); color: var(--accent); }
+    .tf-summary {
+      position: sticky; top: 0; padding: 22px 24px; border-radius: 14px;
+      background: #f7f8fc; border: 1px solid var(--border);
+    }
+    .tf-summary .confirm-row { gap: 12px; }
+    .tf-summary .confirm-row .v { text-align: right; word-break: break-all; }
+    .tf-summary .primary-btn { width: 100%; margin: 18px 0 0; }
+
+    /* 이체 완료 화면: 가운데 정렬로 폭 제한 */
+    #view-transfer-done > * { max-width: 460px; width: 100%; margin-left: auto; margin-right: auto; }
+    #view-transfer-done .primary-btn, #view-transfer-done .ghost-btn { width: 100%; margin-top: 10px; }
+    #view-transfer-done .success-wrap { padding: 60px 0 20px; }
+    #view-transfer-done .headline { word-break: keep-all; }
+
     /* 홈(대시보드)은 LNB 없이 전체 폭 */
     #phone.no-lnb #lnb, #phone.no-lnb #page-head { display: none; }
     #phone.no-lnb #main { grid-column: 1 / -1; }
@@ -688,6 +741,52 @@
     <div id="bills-list"></div>
   </div>
 
+  <!-- ================= 이체: PC 한 페이지 폼 (모바일은 아래 4단계 화면을 그대로 사용) ================= -->
+  <div class="view" id="view-transfer-form">
+    <div class="tf-layout">
+      <div class="tf-main">
+        <section class="tf-sec">
+          <h3>출금계좌</h3>
+          <select id="tf-from" aria-label="출금계좌" onchange="onTfFromChange(this.value)"></select>
+          <div class="tf-hint" id="tf-from-hint">출금가능금액 0원</div>
+        </section>
+        <section class="tf-sec">
+          <h3>받는 계좌</h3>
+          <input id="tf-to" placeholder="계좌번호를 입력하세요" autocomplete="off" oninput="onTfToInput(this.value)" />
+          <div class="tf-hint" id="tf-to-hint"></div>
+          <div class="tf-sub">또는 목록에서 선택</div>
+          <div class="tf-recipients" id="tf-recipients"></div>
+        </section>
+        <section class="tf-sec">
+          <h3>이체금액</h3>
+          <div class="tf-amount-row">
+            <input id="tf-amount" inputmode="numeric" placeholder="0" autocomplete="off" oninput="onTfAmountInput(this)" />
+            <span>원</span>
+          </div>
+          <div class="tf-hint" id="tf-amount-hint"></div>
+          <div class="tf-quick">
+            <button type="button" onclick="tfAddAmount(10000)">+1만</button>
+            <button type="button" onclick="tfAddAmount(50000)">+5만</button>
+            <button type="button" onclick="tfAddAmount(100000)">+10만</button>
+            <button type="button" onclick="tfAddAmount(1000000)">+100만</button>
+            <button type="button" onclick="tfAllAmount()">전액</button>
+            <button type="button" onclick="tfClearAmount()">초기화</button>
+          </div>
+        </section>
+      </div>
+
+      <aside class="tf-summary">
+        <h3>이체 정보</h3>
+        <div class="confirm-row"><span class="k">출금계좌</span><span class="v" id="tfs-from">-</span></div>
+        <div class="confirm-row"><span class="k">받는 분</span><span class="v" id="tfs-to">-</span></div>
+        <div class="confirm-row"><span class="k">이체금액</span><span class="v" id="tfs-amount">0원</span></div>
+        <div class="confirm-row"><span class="k">수수료</span><span class="v">면제</span></div>
+        <div class="confirm-row"><span class="k">이체 후 잔액</span><span class="v" id="tfs-after">-</span></div>
+        <button class="primary-btn" id="tf-submit" onclick="openTfModal()" disabled>이체하기</button>
+      </aside>
+    </div>
+  </div>
+
   <!-- ================= 이체: 받는사람 ================= -->
   <div class="view" id="view-transfer-recipient">
     <div class="subheader">
@@ -788,6 +887,21 @@
     <button data-nav="dashboard" onclick="showView('dashboard')"><span class="icon">&#127968;</span>홈</button>
     <button data-nav="accounts" onclick="showView('accounts')"><span class="icon">&#128179;</span>전체계좌</button>
     <button data-nav="transfer" onclick="openTransfer()"><span class="icon">&#8644;</span>이체</button>
+  </div>
+
+  <!-- ================= PC 이체 확인 모달 ================= -->
+  <div id="tf-modal" class="modal" role="dialog" aria-modal="true" aria-label="이체 확인">
+    <div class="modal-box">
+      <h3>아래 내용으로 이체할까요?</h3>
+      <div class="modal-amount" id="tfm-amount">0원</div>
+      <div class="confirm-row"><span class="k">출금계좌</span><span class="v" id="tfm-from">-</span></div>
+      <div class="confirm-row"><span class="k">받는 분</span><span class="v" id="tfm-to">-</span></div>
+      <div class="confirm-row"><span class="k">수수료</span><span class="v">면제</span></div>
+      <div class="modal-btns">
+        <button class="ghost-btn" onclick="closeTfModal()">취소</button>
+        <button class="primary-btn" id="tfm-ok" onclick="confirmTfTransfer()">이체</button>
+      </div>
+    </div>
   </div>
 
   <!-- ================= 챗봇 ================= -->
@@ -1140,7 +1254,7 @@
         } },
     ] },
     transfer: { label: "이체", items: [
-      { label: "계좌이체", views: ["transfer-recipient", "transfer-amount", "transfer-confirm", "transfer-done"], go: () => openTransfer() },
+      { label: "계좌이체", views: ["transfer-form", "transfer-recipient", "transfer-amount", "transfer-confirm", "transfer-done"], go: () => openTransfer() },
     ] },
     bills: { label: "공과금", items: [
       { label: "청구서 납부", views: ["bills"], go: () => openBills() },
@@ -1151,7 +1265,7 @@
   };
   const PAGE_TITLE_OVERRIDE = { "transfer-done": "이체 완료" };
 
-  function gnbGo(sectionKey) { SECTIONS[sectionKey].items[0].go(); }
+  function gnbGo(sectionKey) { return SECTIONS[sectionKey].items[0].go(); }
 
   function findMenuFor(viewName) {
     for (const [key, sec] of Object.entries(SECTIONS)) {
@@ -1226,20 +1340,132 @@
     renderRecipientNumber();
   }
 
-  async function openTransfer() {
-    transfer = { fromId: accounts[0] ? accounts[0].account_id : null, to: null, amount: 0 };
+  // PC(>=1024px)는 한 페이지 폼, 모바일은 받는사람→금액→확인→완료 4단계. 상태(transfer)와 실행(doTransfer)은 공유.
+  const isDesktop = () => window.matchMedia("(min-width: 1024px)").matches;
+
+  async function startTransfer(fromId) {
+    transfer = { fromId, to: null, amount: 0 };
     await loadRecipients();
+    if (isDesktop()) {
+      initTransferForm();
+      showView("transfer-form");
+      return;
+    }
     resetRecipientEntry();
     renderRecipients();
     showView("transfer-recipient");
   }
-  async function openTransferFrom() {
-    transfer = { fromId: currentAccountId, to: null, amount: 0 };
-    await loadRecipients();
-    resetRecipientEntry();
-    renderRecipients();
-    showView("transfer-recipient");
+  function openTransfer() { return startTransfer(accounts[0] ? accounts[0].account_id : null); }
+  function openTransferFrom() { return startTransfer(currentAccountId); }
+
+  /* ---------------- 이체: PC 한 페이지 폼 ---------------- */
+  const fromAccount = () => accounts.find((a) => a.account_id === transfer.fromId);
+  const tfEl = (id) => document.getElementById(id);
+
+  function initTransferForm() {
+    tfEl("tf-to").value = "";
+    tfEl("tf-amount").value = "";
+    tfEl("tf-from").innerHTML = accounts
+      .map((a) => `<option value="${a.account_id}">${a.nickname} · ${a.account_id}  (${won(a.balance)})</option>`)
+      .join("");
+    if (transfer.fromId) tfEl("tf-from").value = transfer.fromId;
+    tfRenderRecipients();
+    tfRefresh();
   }
+
+  function tfRenderRecipients() {
+    const wrap = tfEl("tf-recipients");
+    wrap.innerHTML = "";
+    const add = (title, accountId) => {
+      const div = document.createElement("div");
+      div.className = "recipient-item";
+      div.dataset.id = accountId;
+      div.innerHTML = `<div><div class="name">${title}</div><div class="acc">브이뱅크 ${accountId}</div></div>`;
+      div.onclick = () => { tfEl("tf-to").value = accountId; tfRefresh(); };
+      wrap.appendChild(div);
+    };
+    accounts.filter((a) => a.account_id !== transfer.fromId).forEach((a) => add(`${a.nickname} 계좌 (내 계좌)`, a.account_id));
+    externalRecipients.forEach((r) => add(r.nickname, r.account_id));
+  }
+
+  // 입력칸의 계좌번호를 검증해 transfer.to를 갱신하고 안내 문구를 돌려준다(모바일 confirmRecipientNumber와 같은 규칙).
+  function tfResolveTo() {
+    const s = tfEl("tf-to").value.trim();
+    transfer.to = null;
+    if (!s) return { cls: "", msg: "계좌번호를 입력하거나 아래 목록에서 선택하세요" };
+    if (s === transfer.fromId) return { cls: "err", msg: "출금계좌와 같은 계좌예요. 다른 계좌를 입력해주세요" };
+    const found = findAccountByNumber(s);
+    if (!found) return { cls: "err", msg: "일치하는 계좌가 없어요. 계좌번호를 확인해주세요" };
+    transfer.to = { name: found.name, accountId: found.accountId };
+    return { cls: "ok", msg: `✓ ${found.name}` };
+  }
+
+  function tfRefresh() {
+    const from = fromAccount();
+    tfEl("tf-from-hint").textContent = from ? `출금가능금액 ${won(from.balance)}` : "출금 가능한 계좌가 없어요";
+
+    const to = tfResolveTo();
+    const toHint = tfEl("tf-to-hint");
+    toHint.textContent = to.msg;
+    toHint.className = "tf-hint " + to.cls;
+    document.querySelectorAll("#tf-recipients .recipient-item").forEach((el) => {
+      el.classList.toggle("selected", !!transfer.to && el.dataset.id === transfer.to.accountId);
+    });
+
+    const over = !!from && transfer.amount > from.balance;
+    const amountHint = tfEl("tf-amount-hint");
+    amountHint.textContent = over ? "출금가능금액을 초과했어요" : transfer.amount > 0 ? won(transfer.amount) : "";
+    amountHint.className = "tf-hint " + (over ? "err" : "");
+
+    tfEl("tfs-from").textContent = from ? `${from.nickname} ${from.account_id}` : "-";
+    tfEl("tfs-to").textContent = transfer.to ? `${transfer.to.name} (${transfer.to.accountId})` : "-";
+    tfEl("tfs-amount").textContent = won(transfer.amount);
+    tfEl("tfs-after").textContent = from && !over ? won(from.balance - transfer.amount) : "-";
+    tfEl("tf-submit").disabled = !(from && transfer.to && transfer.amount > 0 && !over);
+  }
+
+  function onTfFromChange(id) {
+    transfer.fromId = id;
+    tfRenderRecipients();
+    tfRefresh();
+  }
+  function onTfToInput() { tfRefresh(); }
+
+  function syncTfAmountInput() {
+    tfEl("tf-amount").value = transfer.amount > 0 ? transfer.amount.toLocaleString("ko-KR") : "";
+  }
+  function onTfAmountInput(el) {
+    transfer.amount = Number(el.value.replace(/\D/g, "").slice(0, 12)) || 0;
+    syncTfAmountInput();
+    tfRefresh();
+  }
+  function tfAddAmount(v) { transfer.amount += v; syncTfAmountInput(); tfRefresh(); }
+  function tfAllAmount() { const f = fromAccount(); transfer.amount = f ? f.balance : 0; syncTfAmountInput(); tfRefresh(); }
+  function tfClearAmount() { transfer.amount = 0; syncTfAmountInput(); tfRefresh(); }
+
+  // 돈이 나가는 동작이라 실행 전에 한 번 더 확인 모달을 거친다(모바일의 "이체 확인" 화면에 해당).
+  function openTfModal() {
+    if (tfEl("tf-submit").disabled) return;
+    const from = fromAccount();
+    tfEl("tfm-amount").textContent = won(transfer.amount);
+    tfEl("tfm-from").textContent = `${from.nickname} ${from.account_id}`;
+    tfEl("tfm-to").textContent = `${transfer.to.name} (${transfer.to.accountId})`;
+    tfEl("tf-modal").classList.add("open");
+    tfEl("tfm-ok").focus();
+  }
+  function closeTfModal() { tfEl("tf-modal").classList.remove("open"); }
+  async function confirmTfTransfer() {
+    const btn = tfEl("tfm-ok");
+    if (btn.disabled) return;
+    btn.disabled = true;      // 더블클릭으로 이체가 두 번 나가지 않게
+    closeTfModal();
+    try {
+      await doTransfer();
+    } finally {
+      btn.disabled = false;
+    }
+  }
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeTfModal(); });
 
   function toggleRecipientMode() {
     recipientMode = recipientMode === "number" ? "list" : "number";
