@@ -29,3 +29,7 @@ dev = [
     "pytest>=9.1.1",
     "httpx>=0.28",
 ]
+eval = [
+    "agentevals>=0.0.9",
+    "openevals>=0.2.0",
+]
