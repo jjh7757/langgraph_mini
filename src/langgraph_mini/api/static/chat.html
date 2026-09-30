@@ -1478,13 +1478,17 @@
   const fromAccount = () => accounts.find((a) => a.account_id === transfer.fromId);
   const tfEl = (id) => document.getElementById(id);
 
-  function initTransferForm() {
-    tfEl("tf-to").value = "";
-    tfEl("tf-amount").value = "";
+  function tfFillFromOptions() {
     tfEl("tf-from").innerHTML = accounts
       .map((a) => `<option value="${a.account_id}">${a.nickname} · ${a.account_id}  (${won(a.balance)})</option>`)
       .join("");
     if (transfer.fromId) tfEl("tf-from").value = transfer.fromId;
+  }
+
+  function initTransferForm() {
+    tfEl("tf-to").value = "";
+    tfEl("tf-amount").value = "";
+    tfFillFromOptions();
     tfRenderRecipients();
     tfRefresh();
   }
@@ -1765,6 +1769,35 @@
     addMessage("안녕하세요! 계좌·카드·청구서 관련 요청을 말씀해주세요.", "bot");
   }
 
+  // 화면 밖(챗봇)에서 데이터가 바뀐 뒤 계좌·카드·청구서를 다시 받아 지금 보고 있는 화면까지 갱신.
+  // 갱신 실패는 조용히 무시한다 — 챗봇 대화 자체는 이미 정상 처리됐고, 다음 화면 이동 때 다시 불러온다.
+  let refreshSeq = 0;
+  async function refreshFromServer() {
+    const seq = ++refreshSeq;
+    let fresh;
+    try {
+      fresh = await Promise.all([apiGet("/api/accounts"), apiGet("/api/cards"), apiGet("/api/bills")]);
+    } catch (err) {
+      return;
+    }
+    if (seq !== refreshSeq) return;   // 더 나중에 시작한 갱신이 있으면 이 결과는 버린다
+    [accounts, cards, bills] = fresh;
+
+    renderDashboard();
+    renderAccountsList();
+    renderCards();
+    renderBills();
+
+    const active = document.querySelector(".view.active").id;
+    if (active === "view-account-detail" && currentAccountId) {
+      openAccountDetail(currentAccountId);   // 잔액·거래내역 다시 조회
+    } else if (active === "view-transfer-form") {
+      // 입력 중인 값은 지우지 않고 출금계좌 목록·잔액만 새로 반영
+      tfFillFromOptions();
+      tfRefresh();
+    }
+  }
+
   async function sendMessage(text, skipEcho) {
     if (!text || !threadId) return;
     if (!skipEcho) addMessage(text, "user");
@@ -1781,6 +1814,9 @@
         addConfirmCard(data.reply);
       } else {
         addMessage(data.reply, "bot");
+        // 챗봇이 이체·카드잠금·납부 등을 실행했을 수 있으니 화면 데이터를 서버 기준으로 맞춘다
+        // (서버 응답엔 "무엇이 바뀌었는지" 신호가 없어서 조회 3건을 통째로 다시 받는다).
+        refreshFromServer();
       }
     } catch (err) {
       addMessage("오류가 발생했습니다. 잠시 후 다시 시도해주세요.", "bot");
