@@ -55,10 +55,33 @@ def _format_value(value) -> str:
     return json.dumps(_to_plain(value), ensure_ascii=False)
 
 
-def _format_result(result: ActionResult) -> str:
+# 승인 루프가 실행 없이 끝난 경우 — 실행된 params가 없으므로 수정 안내를 붙이지 않는다.
+_NOT_EXECUTED_ERRORS = ("Rejected", "TooManyRevisions")
+
+
+def _revision_note(requested: dict, executed: dict) -> str | None:
+    """사용자가 승인 전에 내용을 수정했으면(예: "아니 5만 원으로") 처음 요청 값과 실제 실행 값을 알려주는 문구.
+
+    LLM이 보는 tool 호출 인자(amount=100000)는 수정 전 값 그대로라, 결과에 실제 실행 값이 있어도
+    최종 답변에서 처음 요청 값을 말하는 경우가 실제로 있었다(평가 transfer_revise에서 재현). 그래서
+    바뀐 항목만 골라 명시적으로 알려준다. 수정이 없으면 None."""
+    requested, executed = _to_plain(requested), _to_plain(executed)
+    changed = [key for key, value in executed.items() if requested.get(key) != value]
+    if not changed:
+        return None
+    before = ", ".join(f"{key}={_format_value(requested.get(key))}" for key in changed)
+    after = ", ".join(f"{key}={_format_value(executed[key])}" for key in changed)
+    return (
+        f"사용자가 승인 전에 내용을 수정함 — 처음 요청 {before}, 실제 실행 {after}. "
+        "사용자에게 안내할 때는 실제 실행된 값을 쓸 것"
+    )
+
+
+def _format_result(result: ActionResult, revision_note: str | None = None) -> str:
+    note = f"({revision_note})" if revision_note else ""
     if result.success:
-        return f"완료: {_format_value(result.value)}"
-    return f"실패({result.error_type}): {result.error_message}"
+        return f"완료{note}: {_format_value(result.value)}"
+    return f"실패({result.error_type}){note}: {result.error_message}"
 
 
 def build_tools(orchestration: OrchestrationService, confirmation_llm) -> list:
@@ -67,7 +90,18 @@ def build_tools(orchestration: OrchestrationService, confirmation_llm) -> list:
         result = propose_and_confirm(
             action, params, ctx, tool_call_id, orchestration, confirmation_llm
         )
-        return _format_result(result)
+        return _format_result(result, _revision_note_for(result, params, tool_call_id, ctx.thread_id))
+
+    def _revision_note_for(
+        result: ActionResult, requested: dict, request_id: str, thread_id: str
+    ) -> str | None:
+        if result.error_type in _NOT_EXECUTED_ERRORS:
+            return None
+        # 종결된 요청은 completed 저장소에 최종(수정 반영) params와 함께 남아 있다.
+        for request in orchestration.get_history(thread_id):
+            if request.request_id == request_id:
+                return _revision_note(requested, request.params)
+        return None
 
     def _query(action: str, params: dict, config: RunnableConfig) -> str:
         ctx = get_context(config)

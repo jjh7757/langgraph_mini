@@ -1,12 +1,17 @@
 import json
 
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langgraph.types import Command
+
 from langgraph_mini.account.domain import Account
 from langgraph_mini.account.repository import MemoryAccountRepository
 from langgraph_mini.account.services.manage import DefaultAccountManageService
 from langgraph_mini.account.services.query import DefaultAccountQueryService
 from langgraph_mini.account.services.transfer import DefaultAccountTransferService
 from langgraph_mini.account.transaction_repository import MemoryTransactionRepository
-from langgraph_mini.agent.propose_tools import build_tools
+from langgraph_mini.agent.confirmation import ConfirmationDecision
+from langgraph_mini.agent.graph import build_graph
+from langgraph_mini.agent.propose_tools import _revision_note, build_tools
 from langgraph_mini.billing.repository import MemoryBillRepository
 from langgraph_mini.billing.services.pay import DefaultBillPaymentService
 from langgraph_mini.billing.services.query import DefaultBillingQueryService
@@ -22,9 +27,11 @@ from langgraph_mini.orchestration.pending_repository import MemoryPendingReposit
 from langgraph_mini.orchestration.service import OrchestrationService
 
 
-def _build():
+def _build(with_savings_account=False):
     account_repo = MemoryAccountRepository()
     account_repo.save(Account(account_id="a1", owner_id="u1", nickname="생활비", balance=1000))
+    if with_savings_account:
+        account_repo.save(Account(account_id="a2", owner_id="u1", nickname="저축", balance=0))
     transaction_repo = MemoryTransactionRepository()
     card_repo = MemoryCardRepository()
     card_repo.save(Card(card_id="c1", account_id="a1", name="생활비 카드", kind=CardKind.CHECK))
@@ -103,3 +110,99 @@ def test_get_my_cards_tool_raises_not_owner_for_other_users_cards():
     output = tools["get_my_cards"].invoke({}, config=config)
 
     assert json.loads(output) == []  # u2는 카드가 없으니 빈 목록(자기 목록만 봄)
+
+
+# ── 사용자가 승인 전에 수정했을 때 tool 결과에 실제 실행 값을 알려주는 문구 ─────────────
+
+
+def test_revision_note_lists_only_changed_params():
+    note = _revision_note(
+        {"from_id": "a1", "to_id": "a2", "amount": 100000},
+        {"from_id": "a1", "to_id": "a2", "amount": 50000},
+    )
+
+    assert "amount=100000" in note
+    assert "amount=50000" in note
+    assert "from_id" not in note  # 안 바뀐 항목은 제외
+
+
+def test_revision_note_is_none_when_nothing_changed():
+    params = {"from_id": "a1", "to_id": "a2", "amount": 100000}
+
+    assert _revision_note(params, dict(params)) is None
+
+
+class _ScriptedLLM:
+    def __init__(self, responses):
+        self._responses = list(responses)
+
+    def bind_tools(self, tools):
+        return self
+
+    def invoke(self, messages):
+        return self._responses.pop(0)
+
+
+class _ScriptedConfirmationLLM:
+    def __init__(self, decisions):
+        self._decisions = list(decisions)
+
+    def with_structured_output(self, schema):
+        return self
+
+    def invoke(self, prompt):
+        return self._decisions.pop(0)
+
+
+def _two_account_graph(decisions):
+    orchestration = _build(with_savings_account=True)
+    call = AIMessage(
+        content="",
+        tool_calls=[
+            {"name": "transfer_money", "args": {"from_id": "a1", "to_id": "a2", "amount": 500}, "id": "call_1"}
+        ],
+    )
+    llm = _ScriptedLLM([call, AIMessage(content="끝")])
+    app = build_graph(llm, orchestration, _ScriptedConfirmationLLM(decisions))
+    return app, orchestration
+
+
+CONFIG = {"configurable": {"thread_id": "t1", "requester_id": "u1"}}
+
+
+def _last_tool_message(app, replies):
+    result = app.invoke({"messages": [HumanMessage(content="a1에서 a2로 500원")]}, config=CONFIG)
+    for reply in replies:
+        result = app.invoke(Command(resume={result["__interrupt__"][0].id: reply}), config=CONFIG)
+    return [m for m in result["messages"] if isinstance(m, ToolMessage)][-1].content
+
+
+def test_tool_result_tells_llm_the_revised_amount_that_was_actually_executed():
+    app, _ = _two_account_graph(
+        [ConfirmationDecision(action="revise", new_params={"amount": 300}), ConfirmationDecision(action="approve")]
+    )
+
+    content = _last_tool_message(app, ["아니 300원으로", "응"])
+
+    assert content.startswith("완료(사용자가 승인 전에 내용을 수정함")
+    assert "amount=500" in content and "amount=300" in content
+
+
+def test_tool_result_has_no_revision_note_when_approved_as_is():
+    app, _ = _two_account_graph([ConfirmationDecision(action="approve")])
+
+    content = _last_tool_message(app, ["응"])
+
+    assert content.startswith("완료: ")
+    assert "수정" not in content
+
+
+def test_rejected_result_after_revision_has_no_revision_note():
+    app, _ = _two_account_graph(
+        [ConfirmationDecision(action="revise", new_params={"amount": 300}), ConfirmationDecision(action="reject")]
+    )
+
+    content = _last_tool_message(app, ["아니 300원으로", "아니 취소"])
+
+    assert content.startswith("실패(Rejected): ")
+    assert "수정" not in content
