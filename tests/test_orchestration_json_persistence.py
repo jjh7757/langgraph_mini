@@ -7,24 +7,15 @@ protocol만 보고 동작한다는 것과, 프로세스가 새로 뜬 것처럼 
 
 from langgraph_mini.account.domain import Account
 from langgraph_mini.account.repository_json import JsonAccountRepository
-from langgraph_mini.account.services.manage import DefaultAccountManageService
-from langgraph_mini.account.services.query import DefaultAccountQueryService
-from langgraph_mini.account.services.transfer import DefaultAccountTransferService
 from langgraph_mini.account.transaction_repository_json import JsonTransactionRepository
+from langgraph_mini.agent.assembly import assemble_orchestration
 from langgraph_mini.billing.repository_json import JsonBillRepository
-from langgraph_mini.billing.services.pay import DefaultBillPaymentService
-from langgraph_mini.billing.services.query import DefaultBillingQueryService
 from langgraph_mini.card.domain import Card, CardKind, CardStatus
 from langgraph_mini.card.repository_json import JsonCardRepository
 from langgraph_mini.card.reissue_request_repository_json import JsonReissueRequestRepository
-from langgraph_mini.card.services.query import DefaultCardQueryService
-from langgraph_mini.card.services.reissue import DefaultCardReissueService
-from langgraph_mini.card.services.status import DefaultCardStatusService
-from langgraph_mini.orchestration.actions import Repos, Services, build_actions
 from langgraph_mini.orchestration.completed_repository_json import JsonCompletedRequestRepository
 from langgraph_mini.orchestration.domain import PendingStatus
 from langgraph_mini.orchestration.pending_repository_json import JsonPendingRepository
-from langgraph_mini.orchestration.service import OrchestrationService
 
 
 def _build_orchestration(paths):
@@ -34,23 +25,17 @@ def _build_orchestration(paths):
     reissue_repo = JsonReissueRequestRepository(paths["reissue_requests"])
     bill_repo = JsonBillRepository(paths["bills"])
 
-    services = Services(
-        account_query=DefaultAccountQueryService(account_repo, transaction_repo, card_repo),
-        account_transfer=DefaultAccountTransferService(account_repo, transaction_repo),
-        account_manage=DefaultAccountManageService(account_repo),
-        card_query=DefaultCardQueryService(card_repo, account_repo),
-        card_status=DefaultCardStatusService(card_repo),
-        card_reissue=DefaultCardReissueService(card_repo, reissue_repo),
-        billing_query=DefaultBillingQueryService(bill_repo),
-        billing_payment=DefaultBillPaymentService(bill_repo, account_repo, transaction_repo),
+
+    orchestration = assemble_orchestration(
+        account_repo=account_repo,
+        transaction_repo=transaction_repo,
+        card_repo=card_repo,
+        reissue_repo=reissue_repo,
+        bill_repo=bill_repo,
+        pending_repo=JsonPendingRepository(paths["pending"]),
+        completed_repo=JsonCompletedRequestRepository(paths["completed"]),
     )
-    repos = Repos(account=account_repo, card=card_repo, reissue_request=reissue_repo, bill=bill_repo)
-    actions = build_actions(repos)
-
-    pending_repo = JsonPendingRepository(paths["pending"])
-    completed_repo = JsonCompletedRequestRepository(paths["completed"])
-
-    return OrchestrationService(actions, services, pending_repo, completed_repo), card_repo
+    return orchestration, card_repo
 
 
 def _paths(tmp_path):
