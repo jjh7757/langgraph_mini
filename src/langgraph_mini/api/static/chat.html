@@ -359,11 +359,213 @@
     color: white; font-weight: 700; cursor: pointer;
   }
   .chat-input-bar button:disabled { opacity: 0.5; }
+
+  /* ---------- PC 레이아웃 (>=1024px): 상단 GNB + 좌측 LNB + 콘텐츠 + 플로팅 챗봇 ---------- */
+  /* 모바일에서는 PC 전용 요소를 숨기고, <main>은 레이아웃에 관여하지 않게(display: contents) 한다. */
+  #gnb, #lnb, #page-head, .d-only, .acc-actions { display: none; }
+  #main { display: contents; }
+  @media (min-width: 1024px) {
+    body { display: block; padding: 0; }
+    #phone {
+      max-width: 1240px; width: 100%; margin: 0 auto;
+      height: 100vh; height: 100dvh;
+      border-radius: 0; box-shadow: 0 0 40px rgba(23, 32, 74, 0.08);
+      display: grid;
+      grid-template-columns: 230px minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+    #bottom-nav { display: none; }   /* 모바일 하단 탭 → GNB/LNB로 대체 */
+
+    /* 상단: 유틸 바 + 메인 메뉴(GNB) */
+    #gnb { display: block; grid-column: 1 / -1; grid-row: 1; background: var(--card); }
+    .gnb-util { display: flex; justify-content: space-between; align-items: center; padding: 14px 28px 12px; }
+    .gnb-util .brand { font-size: 1.4rem; cursor: pointer; }
+    .gnb-util .util-links { display: flex; gap: 16px; font-size: 0.8rem; color: var(--text-sub); }
+    .gnb-util .util-links b { color: var(--text); font-weight: 700; }
+    .gnb-menu { display: flex; background: var(--primary); padding: 0 12px; }
+    .gnb-menu button {
+      flex: 1; max-width: 200px; padding: 15px 0; border: none; background: none;
+      color: rgba(255, 255, 255, 0.72); font-size: 1rem; font-weight: 700; cursor: pointer;
+      border-bottom: 3px solid transparent;
+    }
+    .gnb-menu button:hover { color: white; }
+    .gnb-menu button.active { color: white; border-bottom-color: var(--accent); background: rgba(255, 255, 255, 0.08); }
+
+    /* 좌측 LNB */
+    #lnb {
+      display: flex; flex-direction: column; grid-column: 1; grid-row: 2;
+      padding: 28px 18px; border-right: 1px solid var(--border); overflow-y: auto; gap: 24px;
+    }
+    #lnb .lnb-title { font-size: 1.35rem; font-weight: 800; padding-bottom: 14px; border-bottom: 2px solid var(--primary); }
+    #lnb-list { display: flex; flex-direction: column; margin-top: -12px; }
+    #lnb-list button {
+      text-align: left; border: none; background: none; cursor: pointer;
+      padding: 12px 6px; font-size: 0.92rem; color: var(--text); border-bottom: 1px solid var(--border);
+    }
+    #lnb-list button:hover { color: var(--accent); }
+    #lnb-list button.active { color: var(--accent); font-weight: 800; background: var(--accent-soft); padding-left: 12px; }
+    .lnb-chat {
+      margin-top: auto; padding: 14px; border: 1px solid var(--border); border-radius: 12px;
+      background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: 0.85rem;
+      cursor: pointer; text-align: left;
+    }
+
+    /* 가운데 콘텐츠 */
+    #main { display: flex; flex-direction: column; grid-column: 2; grid-row: 2; min-width: 0; min-height: 0; }
+    #page-head {
+      display: flex; justify-content: space-between; align-items: baseline;
+      padding: 26px 32px 14px;
+    }
+    #page-head h1 { margin: 0; font-size: 1.5rem; font-weight: 800; }
+    #page-head .crumbs { font-size: 0.78rem; color: var(--text-sub); }
+    .view { padding: 0 32px 40px; }
+    .subheader, .topbar { display: none; }     /* 제목/뒤로가기는 page-head, GNB로 대체 */
+    .transfer-step { max-width: 480px; margin: 0 auto; width: 100%; }  /* 4단계에서 한 페이지 폼으로 교체 예정 */
+
+    .m-only { display: none; }
+    .d-only { display: block; }
+
+    /* ----- 전체계좌조회 ----- */
+    .acc-summary {
+      display: flex !important; justify-content: space-between; align-items: flex-end;
+      padding: 8px 4px 22px; border-bottom: 1px solid var(--border); margin-bottom: 22px;
+    }
+    .acc-hello .hi { font-size: 1.35rem; font-weight: 800; }
+    .acc-hello .hi span { color: var(--accent); }
+    .acc-hello .sub { font-size: 0.85rem; color: var(--text-sub); margin-top: 6px; }
+    .acc-total { text-align: right; }
+    .acc-total .label { font-size: 0.8rem; color: var(--text-sub); }
+    .acc-total .amount { font-size: 2rem; font-weight: 800; margin-top: 4px; }
+    .acc-listbar {
+      display: flex !important; justify-content: space-between; align-items: center;
+      padding: 0 4px 12px;
+    }
+    .acc-listbar .ttl { font-size: 1.05rem; font-weight: 800; }
+    .acc-listbar .ttl span { font-size: 0.85rem; color: var(--text-sub); font-weight: 500; }
+    .view-toggle { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .view-toggle button {
+      border: none; background: var(--card); color: var(--text-sub); width: 38px; height: 34px;
+      font-size: 1rem; cursor: pointer;
+    }
+    .view-toggle button.active { background: var(--accent); color: white; }
+
+    #accounts-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-content: start; }
+    #accounts-list .account-card {
+      margin: 0; padding: 20px 22px; display: flex; flex-direction: column;
+      border-left: 4px solid var(--accent); transition: box-shadow 0.15s ease, transform 0.15s ease;
+    }
+    #accounts-list .account-card:hover { box-shadow: 0 8px 24px rgba(23, 32, 74, 0.1); transform: translateY(-2px); }
+    #accounts-list .account-card .number { order: 1; margin: 0; font-size: 1rem; font-weight: 800; color: var(--text); }
+    #accounts-list .account-card .nickname { order: 2; margin-top: 4px; }
+    #accounts-list .account-card .balance { order: 3; text-align: right; margin-top: 22px; font-size: 1.5rem; }
+    #accounts-list .acc-actions { order: 4; display: flex; gap: 8px; margin-top: 16px; }
+    .acc-actions button {
+      flex: 1; padding: 10px 0; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--card); color: var(--text); font-weight: 700; font-size: 0.85rem; cursor: pointer;
+    }
+    .acc-actions button:first-child { background: var(--primary); color: white; border-color: var(--primary); }
+    .acc-actions button:hover { border-color: var(--accent); }
+
+    /* 목록형 보기: 한 줄에 계좌 하나 */
+    #accounts-list.as-list { grid-template-columns: 1fr; gap: 10px; }
+    #accounts-list.as-list .account-card {
+      display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 190px; align-items: center;
+      column-gap: 20px; padding: 14px 22px;
+    }
+    #accounts-list.as-list .account-card .number { grid-column: 1; grid-row: 1; }
+    #accounts-list.as-list .account-card .nickname { grid-column: 1; grid-row: 2; margin-top: 2px; }
+    #accounts-list.as-list .account-card .balance { grid-column: 2; grid-row: 1 / span 2; margin: 0; font-size: 1.25rem; }
+    #accounts-list.as-list .acc-actions { grid-column: 3; grid-row: 1 / span 2; margin: 0; }
+
+    /* ----- 거래내역조회 ----- */
+    .tx-summary {
+      display: flex !important; align-items: center; gap: 24px;
+      padding: 18px 22px; margin-bottom: 18px;
+      border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 14px;
+    }
+    .tx-summary select {
+      padding: 11px 14px; min-width: 240px; border: 1px solid var(--border); border-radius: 8px;
+      font-size: 0.95rem; font-weight: 700; color: var(--text); background: var(--card); cursor: pointer;
+    }
+    .tx-summary .bal { flex: 1; text-align: right; }
+    .tx-summary .bal .amount { font-size: 1.7rem; font-weight: 800; }
+    .tx-summary .bal .avail { font-size: 0.8rem; color: var(--text-sub); margin-top: 4px; }
+    .tx-summary .primary-btn { width: 120px; margin: 0; padding: 12px 0; }
+    .tx-toolbar { display: flex !important; justify-content: space-between; align-items: center; padding: 0 4px 10px; }
+    .tx-filter { display: flex; gap: 6px; }
+    .tx-filter button {
+      padding: 7px 16px; border-radius: 20px; border: 1px solid var(--border);
+      background: var(--card); color: var(--text-sub); font-size: 0.82rem; font-weight: 600; cursor: pointer;
+    }
+    .tx-filter button.active { background: var(--primary); border-color: var(--primary); color: white; }
+    .tx-count { font-size: 0.82rem; color: var(--text-sub); }
+
+    /* 표: 머리글과 각 행이 같은 5열 그리드를 공유 */
+    .tx-head, .tx-row {
+      display: grid !important; grid-template-columns: 140px 110px minmax(0, 1fr) 160px 160px;
+      column-gap: 16px; align-items: center; padding: 0 16px;
+    }
+    .tx-head {
+      padding-top: 12px; padding-bottom: 12px; background: #f4f5fa; border-top: 2px solid var(--primary);
+      font-size: 0.8rem; font-weight: 700; color: var(--text-sub);
+    }
+    .tx-head span:nth-child(n+4) { text-align: right; }
+    .tx-list { padding: 0; }
+    .tx-row { padding-top: 14px; padding-bottom: 14px; }
+    .tx-row:hover { background: #fafbff; }
+    .tx-row .tx-left, .tx-row .right { display: contents; }
+    .tx-row .meta { order: 1; font-size: 0.85rem; color: var(--text); }
+    .tx-row .tx-type { order: 2; }
+    .tx-row .tx-type span {
+      display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700;
+      background: var(--accent-soft); color: var(--accent);
+    }
+    .tx-row .tx-type span.in { background: #e3f8f0; color: var(--mint); }
+    .tx-row .desc { order: 3; margin: 0; }
+    .tx-row .delta { order: 4; text-align: right; }
+    .tx-row .after { order: 5; text-align: right; margin: 0; font-size: 0.88rem; }
+    .tx-empty { padding: 60px 0; text-align: center; color: var(--text-sub); font-size: 0.9rem; border-bottom: 1px solid var(--border); }
+
+    /* 홈(대시보드)은 LNB 없이 전체 폭 */
+    #phone.no-lnb #lnb, #phone.no-lnb #page-head { display: none; }
+    #phone.no-lnb #main { grid-column: 1 / -1; }
+    #phone.no-lnb .view { padding-top: 24px; }
+
+    /* 챗봇: 우측 하단 플로팅 버튼 + 팝업 창 */
+    #chat-fab { position: fixed; right: 32px; bottom: 32px; width: 60px; height: 60px; font-size: 1.6rem; z-index: 31; }
+    #chat-panel {
+      inset: auto; position: fixed; right: 32px; bottom: 104px;
+      width: 380px; height: min(600px, calc(100vh - 140px));
+      border-radius: 18px; overflow: hidden; box-shadow: 0 16px 48px rgba(23, 32, 74, 0.28);
+    }
+
+    #toast { left: 50%; right: auto; width: 360px; transform: translate(-50%, -8px); }
+    #toast.show { transform: translate(-50%, 0); }
+  }
 </style>
 </head>
 <body>
 <div id="phone">
   <div id="toast"></div>
+
+  <!-- ================= PC 전용: 상단 GNB / 좌측 LNB (모바일에서는 숨김) ================= -->
+  <header id="gnb">
+    <div class="gnb-util">
+      <div class="brand" onclick="showView('dashboard')">브이<span class="dot">•</span>뱅크</div>
+      <div class="util-links"><span><b>홍길동</b>님</span><span>고객센터</span><span>로그아웃</span></div>
+    </div>
+    <nav class="gnb-menu" id="gnb-menu"></nav>
+  </header>
+  <aside id="lnb">
+    <div>
+      <div class="lnb-title" id="lnb-title"></div>
+      <div id="lnb-list"></div>
+    </div>
+    <button class="lnb-chat" onclick="openChat()">&#128172; 챗봇에게 물어보세요<br /><span style="font-weight:500;">이체·카드·청구서를 말로 요청할 수 있어요</span></button>
+  </aside>
+
+  <main id="main">
+  <div id="page-head"><h1 id="page-title"></h1><div class="crumbs" id="page-crumbs"></div></div>
 
   <!-- ================= 대시보드 ================= -->
   <div class="view active" id="view-dashboard">
@@ -400,7 +602,25 @@
       <button class="back" onclick="showView('dashboard')">&#8592;</button>
       <h2>전체계좌조회</h2>
     </div>
-    <div class="section-title">예금 · 적금</div>
+    <div class="section-title m-only">예금 · 적금</div>
+
+    <div class="acc-summary d-only">
+      <div class="acc-hello">
+        <div class="hi"><span>홍길동</span>님, 안녕하세요!</div>
+        <div class="sub">내 계좌 잔액과 최근 거래를 한눈에 확인해보세요.</div>
+      </div>
+      <div class="acc-total">
+        <div class="label">예금 총잔액</div>
+        <div class="amount" id="accounts-total">0원</div>
+      </div>
+    </div>
+    <div class="acc-listbar d-only">
+      <div class="ttl">수시 입출금 <span id="accounts-count">(0계좌)</span></div>
+      <div class="view-toggle" role="group" aria-label="보기 방식">
+        <button id="vt-grid" onclick="setAccountsView('grid')" title="카드형 보기">&#9638;</button>
+        <button id="vt-list" onclick="setAccountsView('list')" title="목록형 보기">&#9776;</button>
+      </div>
+    </div>
     <div id="accounts-list"></div>
   </div>
 
@@ -410,16 +630,36 @@
       <button class="back" onclick="showView('accounts')">&#8592;</button>
       <h2 id="detail-title">계좌</h2>
     </div>
-    <div class="detail-balance">
+    <div class="detail-balance m-only">
       <div class="amount" id="detail-amount">0원</div>
       <div class="avail" id="detail-avail">출금가능금액 0원</div>
     </div>
-    <div class="detail-actions">
+    <div class="detail-actions m-only">
       <button onclick="openTransferFrom()">이체</button>
       <button onclick="showView('accounts')">거래내역조회</button>
     </div>
+
+    <!-- PC 전용: 계좌 선택 + 잔액 요약 + 필터 -->
+    <div class="tx-summary d-only">
+      <select id="tx-account-select" aria-label="조회 계좌" onchange="openAccountDetail(this.value)"></select>
+      <div class="bal">
+        <div class="amount" id="tx-amount">0원</div>
+        <div class="avail" id="tx-avail">출금가능금액 0원</div>
+      </div>
+      <button class="primary-btn" onclick="openTransferFrom()">이체</button>
+    </div>
+    <div class="tx-toolbar d-only">
+      <div class="tx-filter" role="group" aria-label="거래 구분">
+        <button data-filter="all" onclick="setTxFilter('all')">전체</button>
+        <button data-filter="in" onclick="setTxFilter('in')">입금</button>
+        <button data-filter="out" onclick="setTxFilter('out')">출금</button>
+      </div>
+      <div class="tx-count" id="tx-count">총 0건</div>
+    </div>
+    <div class="tx-head d-only"><span>거래일시</span><span>구분</span><span>내용</span><span>금액</span><span>거래 후 잔액</span></div>
+
     <div class="tx-list">
-      <div class="tx-month">2026.09</div>
+      <div class="tx-month m-only">2026.09</div>
       <div id="tx-rows"></div>
     </div>
   </div>
@@ -541,7 +781,9 @@
     <button class="ghost-btn" onclick="showView('accounts')">거래내역조회</button>
   </div>
 
-  <!-- ================= 하단 네비게이션 ================= -->
+  </main>
+
+  <!-- ================= 하단 네비게이션 (모바일 전용) ================= -->
   <div id="bottom-nav">
     <button data-nav="dashboard" onclick="showView('dashboard')"><span class="icon">&#127968;</span>홈</button>
     <button data-nav="accounts" onclick="showView('accounts')"><span class="icon">&#128179;</span>전체계좌</button>
@@ -622,7 +864,11 @@
     div.innerHTML = `
       <div class="nickname">브이뱅크ONE통장 · ${acc.nickname}</div>
       <div class="number">${acc.account_id}</div>
-      <div class="balance">${won(acc.balance)}</div>`;
+      <div class="balance">${won(acc.balance)}</div>
+      <div class="acc-actions">
+        <button onclick="event.stopPropagation(); openAccountDetail('${acc.account_id}')">조회</button>
+        <button onclick="event.stopPropagation(); currentAccountId = '${acc.account_id}'; openTransferFrom()">이체</button>
+      </div>`;
     if (clickable) div.onclick = () => openAccountDetail(acc.account_id);
     return div;
   }
@@ -635,10 +881,22 @@
     accounts.forEach((a) => wrap.appendChild(renderAccountCard(a, true)));
   }
 
+  // PC 전체계좌조회: 카드형(grid) / 목록형(list) 보기 전환. 모바일은 이 상태와 무관하게 항상 세로 카드.
+  let accountsViewMode = "grid";
+  function setAccountsView(mode) {
+    accountsViewMode = mode;
+    document.getElementById("accounts-list").classList.toggle("as-list", mode === "list");
+    document.getElementById("vt-grid").classList.toggle("active", mode === "grid");
+    document.getElementById("vt-list").classList.toggle("active", mode === "list");
+  }
+
   function renderAccountsList() {
     const wrap = document.getElementById("accounts-list");
     wrap.innerHTML = "";
     accounts.forEach((a) => wrap.appendChild(renderAccountCard(a, true)));
+    document.getElementById("accounts-total").textContent = won(accounts.reduce((s, a) => s + a.balance, 0));
+    document.getElementById("accounts-count").textContent = `(${accounts.length}계좌)`;
+    setAccountsView(accountsViewMode);
   }
 
   const TX_LABEL = {
@@ -649,17 +907,33 @@
   };
   const TX_SIGN = { TRANSFER_OUT: -1, TRANSFER_IN: 1, CARD_PAYMENT: -1, BILL_PAYMENT: -1 };
 
+  // PC 표의 "구분" 열 (모바일 화면에서는 숨김)
+  const TX_TYPE_NAME = { TRANSFER_OUT: "이체출금", TRANSFER_IN: "이체입금", CARD_PAYMENT: "카드결제", BILL_PAYMENT: "청구서납부" };
+
   let currentAccountId = null;
+  let txRowsData = [];      // 현재 계좌의 거래(부호 있는 금액·거래 후 잔액까지 계산된 상태)
+  let txFilter = "all";     // "all" | "in" | "out"
+  let txLoaded = false;     // 응답 도착 전에 "거래내역이 없어요"가 깜빡이지 않게 구분
+
   async function openAccountDetail(id) {
     currentAccountId = id;
+    txFilter = "all";
+    txRowsData = [];
+    txLoaded = false;
     const acc = accounts.find((a) => a.account_id === id);
     document.getElementById("detail-title").textContent = acc.nickname;
     document.getElementById("detail-amount").textContent = won(acc.balance);
     document.getElementById("detail-avail").textContent = "출금가능금액 " + won(acc.balance);
+    document.getElementById("tx-amount").textContent = won(acc.balance);
+    document.getElementById("tx-avail").textContent = "출금가능금액 " + won(acc.balance);
+    const select = document.getElementById("tx-account-select");
+    select.innerHTML = accounts
+      .map((a) => `<option value="${a.account_id}">${a.nickname} · ${a.account_id}</option>`)
+      .join("");
+    select.value = id;
     showView("account-detail");
+    renderTransactions();
 
-    const rows = document.getElementById("tx-rows");
-    rows.innerHTML = "";
     let transactions;
     try {
       transactions = await apiGet(`/api/accounts/${id}/transactions`);
@@ -667,24 +941,52 @@
       showToast(err.message);
       return;
     }
+    if (currentAccountId !== id) return; // 응답을 기다리는 사이 다른 계좌로 바뀌었으면 버린다
     // 서버는 최신순으로 내려주고 "거래 후 잔액"은 도메인에 없는 값이라, 현재 잔액에서부터
     // 거꾸로 누적 계산한다(after[0] = 현재 잔액, after[i+1] = after[i] - 그 거래의 부호 있는 금액).
     let after = acc.balance;
-    transactions.forEach((t) => {
+    txRowsData = transactions.map((t) => {
       const signed = TX_SIGN[t.transaction_type] * t.amount;
+      const row = { t, signed, after };
+      after -= signed;
+      return row;
+    });
+    txLoaded = true;
+    renderTransactions();
+  }
+
+  function setTxFilter(kind) {
+    txFilter = kind;
+    renderTransactions();
+  }
+
+  function renderTransactions() {
+    document.querySelectorAll(".tx-filter button").forEach((b) => {
+      b.classList.toggle("active", b.dataset.filter === txFilter);
+    });
+    const shown = txRowsData.filter((r) => txFilter === "all" || (txFilter === "in" ? r.signed > 0 : r.signed < 0));
+    document.getElementById("tx-count").textContent = `총 ${shown.length}건`;
+
+    const rows = document.getElementById("tx-rows");
+    rows.innerHTML = "";
+    if (shown.length === 0) {
+      rows.innerHTML = `<div class="tx-empty">${txLoaded ? "거래내역이 없어요" : "불러오는 중이에요"}</div>`;
+      return;
+    }
+    shown.forEach(({ t, signed, after }) => {
       const row = document.createElement("div");
       row.className = "tx-row";
       row.innerHTML = `
-        <div>
+        <div class="tx-left">
           <div class="meta">${fmtDateTime(t.created_at)}</div>
           <div class="desc">${TX_LABEL[t.transaction_type](t)}</div>
         </div>
+        <div class="tx-type d-only"><span class="${signed > 0 ? "in" : ""}">${TX_TYPE_NAME[t.transaction_type]}</span></div>
         <div class="right">
           <div class="delta ${signed > 0 ? "plus" : "minus"}">${signed > 0 ? "+" : "-"}${won(Math.abs(signed))}</div>
           <div class="after">${won(after)}</div>
         </div>`;
       rows.appendChild(row);
-      after -= signed;
     });
   }
 
@@ -825,12 +1127,73 @@
     }
   }
 
+  /* ---------------- PC 셸: GNB / LNB / 페이지 제목·경로 ---------------- */
+  // 메뉴 정의 한 곳에서 GNB(대메뉴)·LNB(하위메뉴)·breadcrumb·활성 표시를 모두 만든다.
+  // views = 이 메뉴 항목이 "현재 위치"로 취급하는 화면들(이체는 4단계 화면이 전부 "계좌이체").
+  const SECTIONS = {
+    inquiry: { label: "조회", items: [
+      { label: "전체계좌조회", views: ["accounts"], go: () => showView("accounts") },
+      { label: "거래내역조회", views: ["account-detail"],
+        go: () => {
+          const id = currentAccountId || (accounts[0] && accounts[0].account_id);
+          return id ? openAccountDetail(id) : showView("accounts");
+        } },
+    ] },
+    transfer: { label: "이체", items: [
+      { label: "계좌이체", views: ["transfer-recipient", "transfer-amount", "transfer-confirm", "transfer-done"], go: () => openTransfer() },
+    ] },
+    bills: { label: "공과금", items: [
+      { label: "청구서 납부", views: ["bills"], go: () => openBills() },
+    ] },
+    cards: { label: "카드", items: [
+      { label: "카드관리", views: ["cards"], go: () => openCards() },
+    ] },
+  };
+  const PAGE_TITLE_OVERRIDE = { "transfer-done": "이체 완료" };
+
+  function gnbGo(sectionKey) { SECTIONS[sectionKey].items[0].go(); }
+
+  function findMenuFor(viewName) {
+    for (const [key, sec] of Object.entries(SECTIONS)) {
+      const item = sec.items.find((it) => it.views.includes(viewName));
+      if (item) return { key, sec, item };
+    }
+    return null; // 홈(대시보드) 등 메뉴에 속하지 않는 화면
+  }
+
+  function renderShell(viewName) {
+    const found = findMenuFor(viewName);
+    document.getElementById("phone").classList.toggle("no-lnb", !found);
+
+    document.getElementById("gnb-menu").innerHTML = Object.entries(SECTIONS)
+      .map(([key, sec]) => `<button class="${found && found.key === key ? "active" : ""}" onclick="gnbGo('${key}')">${sec.label}</button>`)
+      .join("");
+    if (!found) return;
+
+    document.getElementById("lnb-title").textContent = found.sec.label;
+    const list = document.getElementById("lnb-list");
+    list.innerHTML = "";
+    found.sec.items.forEach((it) => {
+      const btn = document.createElement("button");
+      btn.textContent = it.label;
+      btn.className = it === found.item ? "active" : "";
+      btn.onclick = () => it.go();
+      list.appendChild(btn);
+    });
+
+    const title = PAGE_TITLE_OVERRIDE[viewName] || found.item.label;
+    document.getElementById("page-title").textContent = title;
+    document.getElementById("page-crumbs").textContent = `홈 > ${found.sec.label} > ${found.item.label}`;
+  }
+
   /* ---------------- 화면 전환 ---------------- */
   function showView(name) {
+    renderShell(name);
     document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
     document.getElementById("view-" + name).classList.add("active");
     document.querySelectorAll("#bottom-nav button").forEach((b) => b.classList.remove("active"));
-    const navMap = { dashboard: "dashboard", accounts: "accounts", "account-detail": "accounts", transfer: "transfer" };
+    const navMap = { dashboard: "dashboard", accounts: "accounts", "account-detail": "accounts", cards: "cards", bills: "bills",
+      "transfer-recipient": "transfer", "transfer-amount": "transfer", "transfer-confirm": "transfer", "transfer-done": "transfer" };
     const nav = navMap[name];
     if (nav) {
       const btn = document.querySelector(`#bottom-nav button[data-nav="${nav}"]`);
